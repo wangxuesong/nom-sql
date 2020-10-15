@@ -10,6 +10,7 @@ use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
 use nom::sequence::{terminated, tuple};
 use nom::IResult;
+use Span;
 
 #[derive(Debug, Clone, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum ArithmeticOperator {
@@ -78,7 +79,7 @@ impl fmt::Display for ArithmeticExpression {
     }
 }
 
-fn arithmetic_cast_helper(i: &[u8]) -> IResult<&[u8], (ArithmeticBase, Option<SqlType>)> {
+fn arithmetic_cast_helper(i: Span) -> IResult<Span, (ArithmeticBase, Option<SqlType>)> {
     let (remaining_input, (_, _, _, _, a_base, _, _, _, _sign, sql_type, _, _)) = tuple((
         tag_no_case("cast"),
         multispace0,
@@ -98,13 +99,13 @@ fn arithmetic_cast_helper(i: &[u8]) -> IResult<&[u8], (ArithmeticBase, Option<Sq
     Ok((remaining_input, (a_base, Some(sql_type))))
 }
 
-pub fn arithmetic_cast(i: &[u8]) -> IResult<&[u8], (ArithmeticBase, Option<SqlType>)> {
+pub fn arithmetic_cast(i: Span) -> IResult<Span, (ArithmeticBase, Option<SqlType>)> {
     alt((arithmetic_cast_helper, map(arithmetic_base, |v| (v, None))))(i)
 }
 
 // Parse standard math operators.
 // TODO(malte): this doesn't currently observe operator precedence.
-pub fn arithmetic_operator(i: &[u8]) -> IResult<&[u8], ArithmeticOperator> {
+pub fn arithmetic_operator(i: Span) -> IResult<Span, ArithmeticOperator> {
     alt((
         map(tag("+"), |_| ArithmeticOperator::Add),
         map(tag("-"), |_| ArithmeticOperator::Subtract),
@@ -114,7 +115,7 @@ pub fn arithmetic_operator(i: &[u8]) -> IResult<&[u8], ArithmeticOperator> {
 }
 
 // Base case for nested arithmetic expressions: column name or literal.
-pub fn arithmetic_base(i: &[u8]) -> IResult<&[u8], ArithmeticBase> {
+pub fn arithmetic_base(i: Span) -> IResult<Span, ArithmeticBase> {
     alt((
         map(integer_literal, |il| ArithmeticBase::Scalar(il)),
         map(column_identifier_no_alias, |ci| ArithmeticBase::Column(ci)),
@@ -123,7 +124,7 @@ pub fn arithmetic_base(i: &[u8]) -> IResult<&[u8], ArithmeticBase> {
 
 // Parse simple arithmetic expressions combining literals, and columns and literals.
 // TODO(malte): this doesn't currently support nested expressions.
-pub fn arithmetic_expression(i: &[u8]) -> IResult<&[u8], ArithmeticExpression> {
+pub fn arithmetic_expression(i: Span) -> IResult<Span, ArithmeticExpression> {
     let (remaining_input, (left, _, op, _, right, opt_alias)) = tuple((
         arithmetic_cast,
         multispace0,
@@ -219,13 +220,13 @@ mod tests {
         ];
 
         for (i, e) in lit_ae.iter().enumerate() {
-            let res = arithmetic_expression(e.as_bytes());
+            let res = arithmetic_expression(Span::new(e.as_bytes()));
             assert!(res.is_ok());
             assert_eq!(res.unwrap().1, expected_lit_ae[i]);
         }
 
         for (i, e) in col_lit_ae.iter().enumerate() {
-            let res = arithmetic_expression(e.as_bytes());
+            let res = arithmetic_expression(Span::new(e.as_bytes()));
             assert!(res.is_ok());
             assert_eq!(res.unwrap().1, expected_col_lit_ae[i]);
         }
@@ -291,7 +292,7 @@ mod tests {
         ];
 
         for (i, e) in exprs.iter().enumerate() {
-            let res = arithmetic_expression(e.as_bytes());
+            let res = arithmetic_expression(Span::new(e.as_bytes()));
             assert!(res.is_ok(), "{} failed to parse", e);
             assert_eq!(res.unwrap().1, expected[i]);
         }

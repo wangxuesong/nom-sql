@@ -9,6 +9,7 @@ use nom::combinator::map;
 use nom::IResult;
 use select::{JoinClause, SelectStatement};
 use table::Table;
+use Span;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum JoinRightSide {
@@ -90,7 +91,7 @@ impl fmt::Display for JoinConstraint {
 }
 
 // Parse binary comparison operators
-pub fn join_operator(i: &[u8]) -> IResult<&[u8], JoinOperator> {
+pub fn join_operator(i: Span) -> IResult<Span, JoinOperator> {
     alt((
         map(tag_no_case("join"), |_| JoinOperator::Join),
         map(tag_no_case("left join"), |_| JoinOperator::LeftJoin),
@@ -118,7 +119,7 @@ mod tests {
         let qstring = "SELECT tags.* FROM tags \
                        INNER JOIN taggings ON tags.id = taggings.tag_id";
 
-        let res = selection(qstring.as_bytes());
+        let res = selection(Span::new(qstring.as_bytes()));
 
         let ct = ConditionTree {
             left: Box::new(Base(Field(Column::from("tags.id")))),

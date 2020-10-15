@@ -11,6 +11,7 @@ use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 use order::{order_clause, OrderClause};
 use select::{limit_clause, nested_selection, LimitClause, SelectStatement};
+use Span;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum CompoundSelectOperator {
@@ -57,7 +58,7 @@ impl fmt::Display for CompoundSelectStatement {
 }
 
 // Parse compound operator
-fn compound_op(i: &[u8]) -> IResult<&[u8], CompoundSelectOperator> {
+fn compound_op(i: Span) -> IResult<Span, CompoundSelectOperator> {
     alt((
         map(
             preceded(
@@ -89,7 +90,7 @@ fn compound_op(i: &[u8]) -> IResult<&[u8], CompoundSelectOperator> {
     ))(i)
 }
 
-fn other_selects(i: &[u8]) -> IResult<&[u8], (Option<CompoundSelectOperator>, SelectStatement)> {
+fn other_selects(i: Span) -> IResult<Span, (Option<CompoundSelectOperator>, SelectStatement)> {
     let (remaining_input, (_, op, _, _, _, select, _, _)) = tuple((
         multispace0,
         compound_op,
@@ -105,7 +106,7 @@ fn other_selects(i: &[u8]) -> IResult<&[u8], (Option<CompoundSelectOperator>, Se
 }
 
 // Parse compound selection
-pub fn compound_selection(i: &[u8]) -> IResult<&[u8], CompoundSelectStatement> {
+pub fn compound_selection(i: Span) -> IResult<Span, CompoundSelectStatement> {
     let (remaining_input, (first_select, other_selects, _, order, limit, _)) = tuple((
         delimited(opt(tag("(")), nested_selection, opt(tag(")"))),
         many1(other_selects),
@@ -139,8 +140,8 @@ mod tests {
     fn union() {
         let qstr = "SELECT id, 1 FROM Vote UNION SELECT id, stars from Rating;";
         let qstr2 = "(SELECT id, 1 FROM Vote) UNION (SELECT id, stars from Rating);";
-        let res = compound_selection(qstr.as_bytes());
-        let res2 = compound_selection(qstr2.as_bytes());
+        let res = compound_selection(Span::new(qstr.as_bytes()));
+        let res2 = compound_selection(Span::new(qstr2.as_bytes()));
 
         let first_select = SelectStatement {
             tables: vec![Table::from("Vote")],
@@ -178,7 +179,7 @@ mod tests {
         let qstr = "SELECT id, 1 FROM Vote \
                     UNION SELECT id, stars from Rating \
                     UNION DISTINCT SELECT 42, 5 FROM Vote;";
-        let res = compound_selection(qstr.as_bytes());
+        let res = compound_selection(Span::new(qstr.as_bytes()));
 
         let first_select = SelectStatement {
             tables: vec![Table::from("Vote")],
@@ -227,7 +228,7 @@ mod tests {
     #[test]
     fn union_all() {
         let qstr = "SELECT id, 1 FROM Vote UNION ALL SELECT id, stars from Rating;";
-        let res = compound_selection(qstr.as_bytes());
+        let res = compound_selection(Span::new(qstr.as_bytes()));
 
         let first_select = SelectStatement {
             tables: vec![Table::from("Vote")],

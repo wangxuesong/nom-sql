@@ -8,6 +8,7 @@ use nom::combinator::opt;
 use nom::sequence::{delimited, tuple};
 use nom::IResult;
 use table::Table;
+use Span;
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct DropTableStatement {
@@ -32,7 +33,7 @@ impl fmt::Display for DropTableStatement {
     }
 }
 
-pub fn drop_table(i: &[u8]) -> IResult<&[u8], DropTableStatement> {
+pub fn drop_table(i: Span) -> IResult<Span, DropTableStatement> {
     let (remaining_input, (_, opt_if_exists, _, tables, _, _, _, _)) = tuple((
         tag_no_case("drop table"),
         opt(delimited(
@@ -69,7 +70,7 @@ mod tests {
     #[test]
     fn simple_drop_table() {
         let qstring = "DROP TABLE users;";
-        let res = drop_table(qstring.as_bytes());
+        let res = drop_table(Span::new(qstring.as_bytes()));
         assert_eq!(
             res.unwrap().1,
             DropTableStatement {
@@ -83,7 +84,7 @@ mod tests {
     fn format_drop_table() {
         let qstring = "DROP TABLE IF EXISTS users,posts;";
         let expected = "DROP TABLE IF EXISTS users, posts";
-        let res = drop_table(qstring.as_bytes());
+        let res = drop_table(Span::new(qstring.as_bytes()));
         assert_eq!(format!("{}", res.unwrap().1), expected);
     }
 }

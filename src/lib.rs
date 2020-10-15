@@ -1,4 +1,5 @@
 extern crate nom;
+extern crate nom_locate;
 
 extern crate serde;
 #[macro_use]
@@ -29,6 +30,9 @@ pub use self::select::{GroupByClause, JoinClause, LimitClause, SelectStatement};
 pub use self::set::SetStatement;
 pub use self::table::Table;
 pub use self::update::UpdateStatement;
+use nom_locate::LocatedSpan;
+
+pub type Span<'a> = LocatedSpan<&'a [u8]>;
 
 pub mod parser;
 

@@ -12,6 +12,7 @@ use nom::IResult;
 use select::{selection, SelectStatement};
 use set::{set, SetStatement};
 use update::{updating, UpdateStatement};
+use Span;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum SqlQuery {
@@ -42,7 +43,7 @@ impl fmt::Display for SqlQuery {
     }
 }
 
-pub fn sql_query(i: &[u8]) -> IResult<&[u8], SqlQuery> {
+pub fn sql_query(i: Span) -> IResult<Span, SqlQuery> {
     alt((
         map(creation, |c| SqlQuery::CreateTable(c)),
         map(insertion, |i| SqlQuery::Insert(i)),
@@ -60,7 +61,7 @@ pub fn parse_query_bytes<T>(input: T) -> Result<SqlQuery, &'static str>
 where
     T: AsRef<[u8]>,
 {
-    match sql_query(input.as_ref()) {
+    match sql_query(Span::new(input.as_ref())) {
         Ok((_, o)) => Ok(o),
         Err(_) => Err("failed to parse query"),
     }

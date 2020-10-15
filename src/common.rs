@@ -2,7 +2,7 @@ use nom::branch::alt;
 use nom::character::complete::{alphanumeric1, digit1, line_ending, multispace0, multispace1};
 use nom::character::is_alphanumeric;
 use nom::combinator::{map, not, peek};
-use nom::{IResult, InputLength};
+use nom::{IResult, InputLength, AsBytes};
 use std::fmt::{self, Display};
 use std::str;
 use std::str::FromStr;
@@ -17,6 +17,7 @@ use nom::error::{ErrorKind, ParseError};
 use nom::multi::{fold_many0, many0, many1};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use table::Table;
+use Span;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum SqlType {
@@ -360,8 +361,8 @@ pub fn is_sql_identifier(chr: u8) -> bool {
 }
 
 #[inline]
-fn len_as_u16(len: &[u8]) -> u16 {
-    match str::from_utf8(len) {
+fn len_as_u16(len: Span) -> u16 {
+    match str::from_utf8(len.fragment()) {
         Ok(s) => match u16::from_str(s) {
             Ok(v) => v,
             Err(e) => panic!(e),
@@ -370,30 +371,30 @@ fn len_as_u16(len: &[u8]) -> u16 {
     }
 }
 
-fn precision_helper(i: &[u8]) -> IResult<&[u8], (u8, Option<u8>)> {
+fn precision_helper(i: Span) -> IResult<Span, (u8, Option<u8>)> {
     let (remaining_input, (m, d)) = tuple((
         digit1,
         opt(preceded(tag(","), preceded(multispace0, digit1))),
     ))(i)?;
 
-    Ok((remaining_input, (m[0], d.map(|r| r[0]))))
+    Ok((remaining_input, (m.fragment()[0], d.map(|r| r.fragment()[0]))))
 }
 
-pub fn precision(i: &[u8]) -> IResult<&[u8], (u8, Option<u8>)> {
+pub fn precision(i: Span) -> IResult<Span, (u8, Option<u8>)> {
     delimited(tag("("), precision_helper, tag(")"))(i)
 }
 
-fn opt_signed(i: &[u8]) -> IResult<&[u8], Option<&[u8]>> {
+fn opt_signed(i: Span) -> IResult<Span, Option<Span>> {
     opt(alt((tag_no_case("unsigned"), tag_no_case("signed"))))(i)
 }
 
-fn delim_digit(i: &[u8]) -> IResult<&[u8], &[u8]> {
+fn delim_digit(i: Span) -> IResult<Span, Span> {
     delimited(tag("("), digit1, tag(")"))(i)
 }
 
 // TODO: rather than copy paste these functions, should create a function that returns a parser
 // based on the sql int type, just like nom does
-fn tiny_int(i: &[u8]) -> IResult<&[u8], SqlType> {
+fn tiny_int(i: Span) -> IResult<Span, SqlType> {
     let (remaining_input, (_, len, _, signed)) = tuple((
         tag_no_case("tinyint"),
         opt(delim_digit),
@@ -403,7 +404,7 @@ fn tiny_int(i: &[u8]) -> IResult<&[u8], SqlType> {
 
     match signed {
         Some(sign) => {
-            if str::from_utf8(sign)
+            if str::from_utf8(sign.fragment())
                 .unwrap()
                 .eq_ignore_ascii_case("unsigned")
             {
@@ -427,7 +428,7 @@ fn tiny_int(i: &[u8]) -> IResult<&[u8], SqlType> {
 
 // TODO: rather than copy paste these functions, should create a function that returns a parser
 // based on the sql int type, just like nom does
-fn big_int(i: &[u8]) -> IResult<&[u8], SqlType> {
+fn big_int(i: Span) -> IResult<Span, SqlType> {
     let (remaining_input, (_, len, _, signed)) = tuple((
         tag_no_case("bigint"),
         opt(delim_digit),
@@ -437,7 +438,7 @@ fn big_int(i: &[u8]) -> IResult<&[u8], SqlType> {
 
     match signed {
         Some(sign) => {
-            if str::from_utf8(sign)
+            if str::from_utf8(sign.fragment())
                 .unwrap()
                 .eq_ignore_ascii_case("unsigned")
             {
@@ -461,7 +462,7 @@ fn big_int(i: &[u8]) -> IResult<&[u8], SqlType> {
 
 // TODO: rather than copy paste these functions, should create a function that returns a parser
 // based on the sql int type, just like nom does
-fn sql_int_type(i: &[u8]) -> IResult<&[u8], SqlType> {
+fn sql_int_type(i: Span) -> IResult<Span, SqlType> {
     let (remaining_input, (_, len, _, signed)) = tuple((
         alt((
             tag_no_case("integer"),
@@ -475,7 +476,7 @@ fn sql_int_type(i: &[u8]) -> IResult<&[u8], SqlType> {
 
     match signed {
         Some(sign) => {
-            if str::from_utf8(sign)
+            if str::from_utf8(sign.fragment())
                 .unwrap()
                 .eq_ignore_ascii_case("unsigned")
             {
@@ -500,7 +501,7 @@ fn sql_int_type(i: &[u8]) -> IResult<&[u8], SqlType> {
 // TODO(malte): not strictly ok to treat DECIMAL and NUMERIC as identical; the
 // former has "at least" M precision, the latter "exactly".
 // See https://dev.mysql.com/doc/refman/5.7/en/precision-math-decimal-characteristics.html
-fn decimal_or_numeric(i: &[u8]) -> IResult<&[u8], SqlType> {
+fn decimal_or_numeric(i: Span) -> IResult<Span, SqlType> {
     let (remaining_input, precision) = delimited(
         alt((tag_no_case("decimal"), tag_no_case("numeric"))),
         opt(precision),
@@ -514,7 +515,7 @@ fn decimal_or_numeric(i: &[u8]) -> IResult<&[u8], SqlType> {
     }
 }
 
-fn type_identifier_first_half(i: &[u8]) -> IResult<&[u8], SqlType> {
+fn type_identifier_first_half(i: Span) -> IResult<Span, SqlType> {
     alt((
         tiny_int,
         big_int,
@@ -581,7 +582,7 @@ fn type_identifier_first_half(i: &[u8]) -> IResult<&[u8], SqlType> {
     ))(i)
 }
 
-fn type_identifier_second_half(i: &[u8]) -> IResult<&[u8], SqlType> {
+fn type_identifier_second_half(i: Span) -> IResult<Span, SqlType> {
     alt((
         map(
             tuple((tag_no_case("binary"), delim_digit, multispace0)),
@@ -602,13 +603,13 @@ fn type_identifier_second_half(i: &[u8]) -> IResult<&[u8], SqlType> {
 }
 
 // A SQL type specifier.
-pub fn type_identifier(i: &[u8]) -> IResult<&[u8], SqlType> {
+pub fn type_identifier(i: Span) -> IResult<Span, SqlType> {
     alt((type_identifier_first_half, type_identifier_second_half))(i)
 }
 
 // Parses the arguments for an aggregation function, and also returns whether the distinct flag is
 // present.
-pub fn function_arguments(i: &[u8]) -> IResult<&[u8], (FunctionArguments, bool)> {
+pub fn function_arguments(i: Span) -> IResult<Span, (FunctionArguments, bool)> {
     let distinct_parser = opt(tuple((tag_no_case("distinct"), multispace1)));
     let args_parser = alt((
         map(case_when_column, |cw| FunctionArguments::Conditional(cw)),
@@ -618,7 +619,7 @@ pub fn function_arguments(i: &[u8]) -> IResult<&[u8], (FunctionArguments, bool)>
     Ok((remaining_input, (args, distinct.is_some())))
 }
 
-fn group_concat_fx_helper(i: &[u8]) -> IResult<&[u8], &[u8]> {
+fn group_concat_fx_helper(i: Span) -> IResult<Span, Span> {
     let ws_sep = preceded(multispace0, tag_no_case("separator"));
     let (remaining_input, sep) = delimited(
         ws_sep,
@@ -626,18 +627,18 @@ fn group_concat_fx_helper(i: &[u8]) -> IResult<&[u8], &[u8]> {
         multispace0,
     )(i)?;
 
-    Ok((remaining_input, sep.unwrap_or(&[0u8; 0])))
+    Ok((remaining_input, sep.unwrap_or(Span::new(&[0u8; 0]))))
 }
 
-fn group_concat_fx(i: &[u8]) -> IResult<&[u8], (Column, Option<&[u8]>)> {
+fn group_concat_fx(i: Span) -> IResult<Span, (Column, Option<Span>)> {
     pair(column_identifier_no_alias, opt(group_concat_fx_helper))(i)
 }
 
-fn delim_fx_args(i: &[u8]) -> IResult<&[u8], (FunctionArguments, bool)> {
+fn delim_fx_args(i: Span) -> IResult<Span, (FunctionArguments, bool)> {
     delimited(tag("("), function_arguments, tag(")"))(i)
 }
 
-pub fn column_function(i: &[u8]) -> IResult<&[u8], FunctionExpression> {
+pub fn column_function(i: Span) -> IResult<Span, FunctionExpression> {
     let delim_group_concat_fx = delimited(tag("("), group_concat_fx, tag(")"));
     alt((
         map(tag_no_case("count(*)"), |_| FunctionExpression::CountStar),
@@ -663,7 +664,7 @@ pub fn column_function(i: &[u8]) -> IResult<&[u8], FunctionExpression> {
                 let sep = match *sep {
                     // default separator is a comma, see MySQL manual §5.7
                     None => String::from(","),
-                    Some(s) => String::from_utf8(s.to_vec()).unwrap(),
+                    Some(s) => String::from_utf8(s.fragment().to_vec()).unwrap(),
                 };
                 FunctionExpression::GroupConcat(FunctionArguments::Column(col.clone()), sep)
             },
@@ -672,7 +673,7 @@ pub fn column_function(i: &[u8]) -> IResult<&[u8], FunctionExpression> {
 }
 
 // Parses a SQL column identifier in the table.column format
-pub fn column_identifier_no_alias(i: &[u8]) -> IResult<&[u8], Column> {
+pub fn column_identifier_no_alias(i: Span) -> IResult<Span, Column> {
     let table_parser = pair(opt(terminated(sql_identifier, tag("."))), sql_identifier);
     alt((
         map(column_function, |f| Column {
@@ -682,11 +683,11 @@ pub fn column_identifier_no_alias(i: &[u8]) -> IResult<&[u8], Column> {
             function: Some(Box::new(f)),
         }),
         map(table_parser, |tup| Column {
-            name: str::from_utf8(tup.1).unwrap().to_string(),
+            name: str::from_utf8(tup.1.fragment()).unwrap().to_string(),
             alias: None,
             table: match tup.0 {
                 None => None,
-                Some(t) => Some(str::from_utf8(t).unwrap().to_string()),
+                Some(t) => Some(str::from_utf8(t.fragment()).unwrap().to_string()),
             },
             function: None,
         }),
@@ -694,7 +695,7 @@ pub fn column_identifier_no_alias(i: &[u8]) -> IResult<&[u8], Column> {
 }
 
 // Parses a SQL column identifier in the table.column format
-pub fn column_identifier(i: &[u8]) -> IResult<&[u8], Column> {
+pub fn column_identifier(i: Span) -> IResult<Span, Column> {
     let col_func_no_table = map(pair(column_function, opt(as_alias)), |tup| Column {
         name: match tup.1 {
             None => format!("{}", tup.0),
@@ -714,14 +715,14 @@ pub fn column_identifier(i: &[u8]) -> IResult<&[u8], Column> {
             opt(as_alias),
         )),
         |tup| Column {
-            name: str::from_utf8(tup.1).unwrap().to_string(),
+            name: str::from_utf8(tup.1.fragment()).unwrap().to_string(),
             alias: match tup.2 {
                 None => None,
                 Some(a) => Some(String::from(a)),
             },
             table: match tup.0 {
                 None => None,
-                Some(t) => Some(str::from_utf8(t).unwrap().to_string()),
+                Some(t) => Some(str::from_utf8(t.fragment()).unwrap().to_string()),
             },
             function: None,
         },
@@ -730,7 +731,7 @@ pub fn column_identifier(i: &[u8]) -> IResult<&[u8], Column> {
 }
 
 // Parses a SQL identifier (alphanumeric1 and "_").
-pub fn sql_identifier(i: &[u8]) -> IResult<&[u8], &[u8]> {
+pub fn sql_identifier(i: Span) -> IResult<Span, Span> {
     alt((
         preceded(not(peek(sql_keyword)), take_while1(is_sql_identifier)),
         delimited(tag("`"), take_while1(is_sql_identifier), tag("`")),
@@ -739,9 +740,9 @@ pub fn sql_identifier(i: &[u8]) -> IResult<&[u8], &[u8]> {
 }
 
 // Parse an unsigned integer.
-pub fn unsigned_number(i: &[u8]) -> IResult<&[u8], u64> {
-    map(digit1, |d| {
-        FromStr::from_str(str::from_utf8(d).unwrap()).unwrap()
+pub fn unsigned_number(i: Span) -> IResult<Span, u64> {
+    map(digit1, |d:Span| {
+        FromStr::from_str(str::from_utf8(d.fragment()).unwrap()).unwrap()
     })(i)
 }
 
@@ -754,7 +755,7 @@ pub(crate) fn eof<I: Copy + InputLength, E: ParseError<I>>(input: I) -> IResult<
 }
 
 // Parse a terminator that ends a SQL statement.
-pub fn statement_terminator(i: &[u8]) -> IResult<&[u8], ()> {
+pub fn statement_terminator(i: Span) -> IResult<Span, ()> {
     let (remaining_input, _) =
         delimited(multispace0, alt((tag(";"), line_ending, eof)), multispace0)(i)?;
 
@@ -762,7 +763,7 @@ pub fn statement_terminator(i: &[u8]) -> IResult<&[u8], ()> {
 }
 
 // Parse binary comparison operators
-pub fn binary_comparison_operator(i: &[u8]) -> IResult<&[u8], Operator> {
+pub fn binary_comparison_operator(i: Span) -> IResult<Span, Operator> {
     alt((
         map(tag_no_case("not_like"), |_| Operator::NotLike),
         map(tag_no_case("like"), |_| Operator::Like),
@@ -778,18 +779,18 @@ pub fn binary_comparison_operator(i: &[u8]) -> IResult<&[u8], Operator> {
 }
 
 // Parse rule for AS-based aliases for SQL entities.
-pub fn as_alias(i: &[u8]) -> IResult<&[u8], &str> {
+pub fn as_alias(i: Span) -> IResult<Span, &str> {
     map(
         tuple((
             multispace1,
             opt(pair(tag_no_case("as"), multispace1)),
             sql_identifier,
         )),
-        |a| str::from_utf8(a.2).unwrap(),
+        |a| str::from_utf8(a.2.fragment()).unwrap(),
     )(i)
 }
 
-fn field_value_expr(i: &[u8]) -> IResult<&[u8], FieldValueExpression> {
+fn field_value_expr(i: Span) -> IResult<Span, FieldValueExpression> {
     alt((
         map(literal, |l| {
             FieldValueExpression::Literal(LiteralExpression {
@@ -803,7 +804,7 @@ fn field_value_expr(i: &[u8]) -> IResult<&[u8], FieldValueExpression> {
     ))(i)
 }
 
-fn assignment_expr(i: &[u8]) -> IResult<&[u8], (Column, FieldValueExpression)> {
+fn assignment_expr(i: Span) -> IResult<Span, (Column, FieldValueExpression)> {
     separated_pair(
         column_identifier_no_alias,
         delimited(multispace0, tag("="), multispace0),
@@ -811,7 +812,7 @@ fn assignment_expr(i: &[u8]) -> IResult<&[u8], (Column, FieldValueExpression)> {
     )(i)
 }
 
-pub(crate) fn ws_sep_comma(i: &[u8]) -> IResult<&[u8], &[u8]> {
+pub(crate) fn ws_sep_comma(i: Span) -> IResult<Span, Span> {
     delimited(multispace0, tag(","), multispace0)(i)
 }
 
@@ -825,17 +826,17 @@ where
     delimited(multispace0, tag("="), multispace0)(i)
 }
 
-pub fn assignment_expr_list(i: &[u8]) -> IResult<&[u8], Vec<(Column, FieldValueExpression)>> {
+pub fn assignment_expr_list(i: Span) -> IResult<Span, Vec<(Column, FieldValueExpression)>> {
     many1(terminated(assignment_expr, opt(ws_sep_comma)))(i)
 }
 
 // Parse rule for a comma-separated list of fields without aliases.
-pub fn field_list(i: &[u8]) -> IResult<&[u8], Vec<Column>> {
+pub fn field_list(i: Span) -> IResult<Span, Vec<Column>> {
     many0(terminated(column_identifier_no_alias, opt(ws_sep_comma)))(i)
 }
 
 // Parse list of column/field definitions.
-pub fn field_definition_expr(i: &[u8]) -> IResult<&[u8], Vec<FieldDefinitionExpression>> {
+pub fn field_definition_expr(i: Span) -> IResult<Span, Vec<FieldDefinitionExpression>> {
     many0(terminated(
         alt((
             map(tag("*"), |_| FieldDefinitionExpression::All),
@@ -856,14 +857,14 @@ pub fn field_definition_expr(i: &[u8]) -> IResult<&[u8], Vec<FieldDefinitionExpr
 
 // Parse list of table names.
 // XXX(malte): add support for aliases
-pub fn table_list(i: &[u8]) -> IResult<&[u8], Vec<Table>> {
+pub fn table_list(i: Span) -> IResult<Span, Vec<Table>> {
     many0(terminated(schema_table_reference, opt(ws_sep_comma)))(i)
 }
 
 // Integer literal value
-pub fn integer_literal(i: &[u8]) -> IResult<&[u8], Literal> {
-    map(pair(opt(tag("-")), digit1), |tup| {
-        let mut intval = i64::from_str(str::from_utf8(tup.1).unwrap()).unwrap();
+pub fn integer_literal(i: Span) -> IResult<Span, Literal> {
+    map(pair(opt(tag("-")), digit1), |tup:(Option<Span>, Span)| {
+        let mut intval = i64::from_str(str::from_utf8(tup.1.fragment()).unwrap()).unwrap();
         if (tup.0).is_some() {
             intval *= -1;
         }
@@ -871,12 +872,12 @@ pub fn integer_literal(i: &[u8]) -> IResult<&[u8], Literal> {
     })(i)
 }
 
-fn unpack(v: &[u8]) -> i32 {
-    i32::from_str(str::from_utf8(v).unwrap()).unwrap()
+fn unpack(v: Span) -> i32 {
+    i32::from_str(str::from_utf8(v.fragment()).unwrap()).unwrap()
 }
 
 // Floating point literal value
-pub fn float_literal(i: &[u8]) -> IResult<&[u8], Literal> {
+pub fn float_literal(i: Span) -> IResult<Span, Literal> {
     map(tuple((opt(tag("-")), digit1, tag("."), digit1)), |tup| {
         Literal::FixedPoint(Real {
             integral: if (tup.0).is_some() {
@@ -890,35 +891,35 @@ pub fn float_literal(i: &[u8]) -> IResult<&[u8], Literal> {
 }
 
 /// String literal value
-fn raw_string_quoted(input: &[u8], is_single_quote: bool) -> IResult<&[u8], Vec<u8>> {
+fn raw_string_quoted(input: Span, is_single_quote: bool) -> IResult<Span, Vec<u8>> {
     // TODO: clean up these assignments. lifetimes and temporary values made it difficult
-    let quote_slice: &[u8] = if is_single_quote { b"\'" } else { b"\"" };
-    let double_quote_slice: &[u8] = if is_single_quote { b"\'\'" } else { b"\"\"" };
-    let backslash_quote: &[u8] = if is_single_quote { b"\\\'" } else { b"\\\"" };
+    let quote_slice: Span = if is_single_quote { Span::new(b"\'") } else { Span::new(b"\"") };
+    let double_quote_slice: Span = if is_single_quote { Span::new(b"\'\'") } else { Span::new(b"\"\"" )};
+    let backslash_quote: Span = if is_single_quote { Span::new(b"\\\'") } else { Span::new(b"\\\"") };
     delimited(
         tag(quote_slice),
         fold_many0(
             alt((
                 is_not(backslash_quote),
-                map(tag(double_quote_slice), |_| -> &[u8] {
+                map(tag(double_quote_slice), |_| -> Span {
                     if is_single_quote {
-                        b"\'"
+                        Span::new(b"\'")
                     } else {
-                        b"\""
+                        Span::new(b"\"")
                     }
                 }),
-                map(tag("\\\\"), |_| &b"\\"[..]),
-                map(tag("\\b"), |_| &b"\x7f"[..]),
-                map(tag("\\r"), |_| &b"\r"[..]),
-                map(tag("\\n"), |_| &b"\n"[..]),
-                map(tag("\\t"), |_| &b"\t"[..]),
-                map(tag("\\0"), |_| &b"\0"[..]),
-                map(tag("\\Z"), |_| &b"\x1A"[..]),
+                map(tag("\\\\"), |_| Span::new(&b"\\"[..])),
+                map(tag("\\b"), |_| Span::new(&b"\x7f"[..])),
+                map(tag("\\r"), |_| Span::new(&b"\r"[..])),
+                map(tag("\\n"), |_| Span::new(&b"\n"[..])),
+                map(tag("\\t"), |_| Span::new(&b"\t"[..])),
+                map(tag("\\0"), |_| Span::new(&b"\0"[..])),
+                map(tag("\\Z"), |_| Span::new(&b"\x1A"[..])),
                 preceded(tag("\\"), take(1usize)),
             )),
             Vec::new(),
-            |mut acc: Vec<u8>, bytes: &[u8]| {
-                acc.extend(bytes);
+            |mut acc: Vec<u8>, bytes: Span| {
+                acc.extend(bytes.as_bytes());
                 acc
             },
         ),
@@ -926,15 +927,15 @@ fn raw_string_quoted(input: &[u8], is_single_quote: bool) -> IResult<&[u8], Vec<
     )(input)
 }
 
-fn raw_string_single_quoted(i: &[u8]) -> IResult<&[u8], Vec<u8>> {
+fn raw_string_single_quoted(i: Span) -> IResult<Span, Vec<u8>> {
     raw_string_quoted(i, true)
 }
 
-fn raw_string_double_quoted(i: &[u8]) -> IResult<&[u8], Vec<u8>> {
+fn raw_string_double_quoted(i: Span) -> IResult<Span, Vec<u8>> {
     raw_string_quoted(i, false)
 }
 
-pub fn string_literal(i: &[u8]) -> IResult<&[u8], Literal> {
+pub fn string_literal(i: Span) -> IResult<Span, Literal> {
     map(
         alt((raw_string_single_quoted, raw_string_double_quoted)),
         |bytes| match String::from_utf8(bytes) {
@@ -945,7 +946,7 @@ pub fn string_literal(i: &[u8]) -> IResult<&[u8], Literal> {
 }
 
 // Any literal value.
-pub fn literal(i: &[u8]) -> IResult<&[u8], Literal> {
+pub fn literal(i: Span) -> IResult<Span, Literal> {
     alt((
         float_literal,
         integer_literal,
@@ -959,18 +960,18 @@ pub fn literal(i: &[u8]) -> IResult<&[u8], Literal> {
         map(tag("?"), |_| {
             Literal::Placeholder(ItemPlaceholder::QuestionMark)
         }),
-        map(preceded(tag(":"), digit1), |num| {
-            let value = i32::from_str(str::from_utf8(num).unwrap()).unwrap();
+        map(preceded(tag(":"), digit1), |num:Span| {
+            let value = i32::from_str(str::from_utf8(num.as_bytes()).unwrap()).unwrap();
             Literal::Placeholder(ItemPlaceholder::ColonNumber(value))
         }),
-        map(preceded(tag("$"), digit1), |num| {
-            let value = i32::from_str(str::from_utf8(num).unwrap()).unwrap();
+        map(preceded(tag("$"), digit1), |num:Span| {
+            let value = i32::from_str(str::from_utf8(num.as_bytes()).unwrap()).unwrap();
             Literal::Placeholder(ItemPlaceholder::DollarNumber(value))
         }),
     ))(i)
 }
 
-pub fn literal_expression(i: &[u8]) -> IResult<&[u8], LiteralExpression> {
+pub fn literal_expression(i: Span) -> IResult<Span, LiteralExpression> {
     map(
         pair(
             delimited(opt(tag("(")), literal, opt(tag(")"))),
@@ -984,12 +985,12 @@ pub fn literal_expression(i: &[u8]) -> IResult<&[u8], LiteralExpression> {
 }
 
 // Parse a list of values (e.g., for INSERT syntax).
-pub fn value_list(i: &[u8]) -> IResult<&[u8], Vec<Literal>> {
+pub fn value_list(i: Span) -> IResult<Span, Vec<Literal>> {
     many0(delimited(multispace0, literal, opt(ws_sep_comma)))(i)
 }
 
 // Parse a reference to a named schema.table, with an optional alias
-pub fn schema_table_reference(i: &[u8]) -> IResult<&[u8], Table> {
+pub fn schema_table_reference(i: Span) -> IResult<Span, Table> {
     map(
 		tuple((
 			opt(pair(sql_identifier, tag("."))),
@@ -997,22 +998,22 @@ pub fn schema_table_reference(i: &[u8]) -> IResult<&[u8], Table> {
 			opt(as_alias)
 		)),
 	|tup| Table {
-        name: String::from(str::from_utf8(tup.1).unwrap()),
+        name: String::from(str::from_utf8(tup.1.fragment()).unwrap()),
         alias: match tup.2 {
             Some(a) => Some(String::from(a)),
             None => None,
         },
         schema: match tup.0 {
-            Some((schema, _)) => Some(String::from(str::from_utf8(schema).unwrap())),
+            Some((schema, _)) => Some(String::from(str::from_utf8(schema.fragment()).unwrap())),
             None => None,
         },
     })(i)
 }
 
 // Parse a reference to a named table, with an optional alias
-pub fn table_reference(i: &[u8]) -> IResult<&[u8], Table> {
+pub fn table_reference(i: Span) -> IResult<Span, Table> {
     map(pair(sql_identifier, opt(as_alias)), |tup| Table {
-        name: String::from(str::from_utf8(tup.0).unwrap()),
+        name: String::from(str::from_utf8(tup.0.fragment()).unwrap()),
         alias: match tup.1 {
             Some(a) => Some(String::from(a)),
             None => None,
@@ -1022,13 +1023,13 @@ pub fn table_reference(i: &[u8]) -> IResult<&[u8], Table> {
 }
 
 // Parse rule for a comment part.
-pub fn parse_comment(i: &[u8]) -> IResult<&[u8], String> {
+pub fn parse_comment(i: Span) -> IResult<Span, String> {
     map(
         preceded(
             delimited(multispace0, tag_no_case("comment"), multispace1),
             delimited(tag("'"), take_until("'"), tag("'")),
         ),
-        |comment| String::from(str::from_utf8(comment).unwrap()),
+        |comment:Span| String::from(str::from_utf8(comment.fragment()).unwrap()),
     )(i)
 }
 
@@ -1036,14 +1037,22 @@ pub fn parse_comment(i: &[u8]) -> IResult<&[u8], String> {
 mod tests {
     use super::*;
 
+    fn new_span_with_offset(offset: usize, line: u32) -> Span<'static> {
+        let span;
+        unsafe {
+            span = Span::new_from_raw_offset(offset, line, &b""[..], ());
+        };
+        span
+    }
+
     #[test]
     fn sql_identifiers() {
-        let id1 = b"foo";
-        let id2 = b"f_o_o";
-        let id3 = b"foo12";
-        let id4 = b":fo oo";
-        let id5 = b"primary ";
-        let id6 = b"`primary`";
+        let id1 = Span::new(b"foo");
+        let id2 = Span::new(b"f_o_o");
+        let id3 = Span::new(b"foo12");
+        let id4 = Span::new(b":fo oo");
+        let id5 = Span::new(b"primary ");
+        let id6 = Span::new(b"`primary`");
 
         assert!(sql_identifier(id1).is_ok());
         assert!(sql_identifier(id2).is_ok());
@@ -1060,11 +1069,11 @@ mod tests {
 
         let res_ok: Vec<_> = ok
             .iter()
-            .map(|t| type_identifier(t.as_bytes()).unwrap().1)
+            .map(|t| type_identifier(Span::new(t.as_bytes())).unwrap().1)
             .collect();
         let res_not_ok: Vec<_> = not_ok
             .iter()
-            .map(|t| type_identifier(t.as_bytes()).is_ok())
+            .map(|t| type_identifier(Span::new(t.as_bytes())).is_ok())
             .collect();
 
         assert_eq!(
@@ -1077,7 +1086,7 @@ mod tests {
 
     #[test]
     fn simple_column_function() {
-        let qs = b"max(addr_id)";
+        let qs = Span::new(b"max(addr_id)");
 
         let res = column_identifier(qs);
         let expected = Column {
@@ -1093,7 +1102,7 @@ mod tests {
 
     #[test]
     fn comment_data() {
-        let res = parse_comment(b" COMMENT 'test'");
+        let res = parse_comment(Span::new(b" COMMENT 'test'"));
         assert_eq!(res.unwrap().1, "test");
     }
 
@@ -1102,29 +1111,29 @@ mod tests {
         let all_escaped = br#"\0\'\"\b\n\r\t\Z\\\%\_"#;
         for quote in [&b"'"[..], &b"\""[..]].iter() {
             let quoted = &[quote, &all_escaped[..], quote].concat();
-            let res = string_literal(quoted);
+            let res = string_literal(Span::new(quoted));
             let expected = Literal::String("\0\'\"\x7F\n\r\t\x1a\\%_".to_string());
-            assert_eq!(res, Ok((&b""[..], expected)));
+            assert_eq!(res, Ok((new_span_with_offset(24, 1), expected)));
         }
     }
 
     #[test]
     fn literal_string_single_quote() {
-        let res = string_literal(b"'a''b'");
+        let res = string_literal(Span::new(b"'a''b'"));
         let expected = Literal::String("a'b".to_string());
-        assert_eq!(res, Ok((&b""[..], expected)));
+        assert_eq!(res, Ok((new_span_with_offset(6, 1), expected)));
     }
 
     #[test]
     fn literal_string_double_quote() {
-        let res = string_literal(br#""a""b""#);
+        let res = string_literal(Span::new(br#""a""b""#));
         let expected = Literal::String(r#"a"b"#.to_string());
-        assert_eq!(res, Ok((&b""[..], expected)));
+        assert_eq!(res, Ok((new_span_with_offset(6, 1), expected)));
     }
 
     #[test]
     fn terminated_by_semicolon() {
-        let res = statement_terminator(b"   ;  ");
-        assert_eq!(res, Ok((&b""[..], ())));
+        let res = statement_terminator(Span::new(b"   ;  "));
+        assert_eq!(res, Ok((new_span_with_offset(6, 1), ())));
     }
 }

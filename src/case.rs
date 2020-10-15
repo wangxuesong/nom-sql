@@ -9,6 +9,7 @@ use nom::character::complete::multispace0;
 use nom::combinator::opt;
 use nom::sequence::{delimited, terminated, tuple};
 use nom::IResult;
+use Span;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ColumnOrLiteral {
@@ -43,7 +44,7 @@ impl fmt::Display for CaseWhenExpression {
     }
 }
 
-pub fn case_when_column(i: &[u8]) -> IResult<&[u8], CaseWhenExpression> {
+pub fn case_when_column(i: Span) -> IResult<Span, CaseWhenExpression> {
     let (remaining_input, (_, _, condition, _, _, _, column, _, else_val, _)) = tuple((
         tag_no_case("case when"),
         multispace0,
