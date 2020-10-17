@@ -20,10 +20,11 @@ use nom::{IResult, AsBytes};
 use order::{order_type, OrderType};
 use select::{nested_selection, SelectStatement};
 use table::Table;
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct CreateTableStatement {
+    pub pos: Position,
     pub table: Table,
     pub fields: Vec<ColumnSpecification>,
     pub keys: Option<Vec<TableKey>>,
@@ -73,6 +74,7 @@ impl fmt::Display for SelectSpecification {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct CreateViewStatement {
+    pub pos: Position,
     pub name: String,
     pub fields: Vec<Column>,
     pub definition: Box<SelectSpecification>,
@@ -412,6 +414,7 @@ pub fn creation(i: Span) -> IResult<Span, CreateTableStatement> {
     Ok((
         remaining_input,
         CreateTableStatement {
+            pos: Position::from(i),
             table,
             fields,
             keys,
@@ -444,6 +447,7 @@ pub fn view_creation(i: Span) -> IResult<Span, CreateViewStatement> {
     Ok((
         remaining_input,
         CreateViewStatement {
+            pos: Position::from(i),
             name,
             fields,
             definition,
@@ -500,6 +504,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: vec![
                     ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
@@ -518,6 +523,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("t"),
                 fields: vec![ColumnSpecification::new(
                     Column::from("t.x"),
@@ -535,6 +541,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from(("db1","t")),
                 fields: vec![ColumnSpecification::new(
                     Column::from("t.x"),
@@ -553,6 +560,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("user_newtalk"),
                 fields: vec![
                     ColumnSpecification::with_constraints(
@@ -642,6 +650,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: vec![
                     ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
@@ -661,6 +670,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: vec![
                     ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
@@ -691,6 +701,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("django_admin_log"),
                 fields: vec![
                     ColumnSpecification::with_constraints(
@@ -747,6 +758,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("auth_group"),
                 fields: vec![
                     ColumnSpecification::with_constraints(
@@ -793,9 +805,11 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateViewStatement {
+                pos: Position::new(1, 1),
                 name: String::from("v"),
                 fields: vec![],
                 definition: Box::new(SelectSpecification::Simple(SelectStatement {
+                    pos: Position::new(1, 18),
                     tables: vec![Table::from("users")],
                     fields: vec![FieldDefinitionExpression::All],
                     where_clause: Some(ConditionExpression::ComparisonOp(ConditionTree {
@@ -824,13 +838,16 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateViewStatement {
+                pos: Position::new(1, 1),
                 name: String::from("v"),
                 fields: vec![],
                 definition: Box::new(SelectSpecification::Compound(CompoundSelectStatement {
+                    pos: Position::new(1, 18),
                     selects: vec![
                         (
                             None,
                             SelectStatement {
+                                pos: Position::new(1, 18),
                                 tables: vec![Table::from("users")],
                                 fields: vec![FieldDefinitionExpression::All],
                                 ..Default::default()
@@ -839,6 +856,7 @@ mod tests {
                         (
                             Some(CompoundSelectOperator::DistinctUnion),
                             SelectStatement {
+                                pos: Position::new(1, 44),
                                 tables: vec![Table::from("old_users")],
                                 fields: vec![FieldDefinitionExpression::All],
                                 ..Default::default()
@@ -876,6 +894,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("comments"),
                 fields: vec![
                     ColumnSpecification::with_constraints(

@@ -11,7 +11,7 @@ use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 use order::{order_clause, OrderClause};
 use select::{limit_clause, nested_selection, LimitClause, SelectStatement};
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum CompoundSelectOperator {
@@ -34,6 +34,7 @@ impl fmt::Display for CompoundSelectOperator {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub struct CompoundSelectStatement {
+    pub pos: Position,
     pub selects: Vec<(Option<CompoundSelectOperator>, SelectStatement)>,
     pub order: Option<OrderClause>,
     pub limit: Option<LimitClause>,
@@ -122,6 +123,7 @@ pub fn compound_selection(i: Span) -> IResult<Span, CompoundSelectStatement> {
     Ok((
         remaining_input,
         CompoundSelectStatement {
+            pos: Position::from(i),
             selects,
             order,
             limit,
@@ -135,6 +137,7 @@ mod tests {
     use column::Column;
     use common::{FieldDefinitionExpression, FieldValueExpression, Literal};
     use table::Table;
+    use Position;
 
     #[test]
     fn union() {
@@ -144,6 +147,7 @@ mod tests {
         let res2 = compound_selection(Span::new(qstr2.as_bytes()));
 
         let first_select = SelectStatement {
+            pos: Position::new(1, 1),
             tables: vec![Table::from("Vote")],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
@@ -154,6 +158,7 @@ mod tests {
             ..Default::default()
         };
         let second_select = SelectStatement {
+            pos: Position::new(1, 30),
             tables: vec![Table::from("Rating")],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
@@ -162,16 +167,30 @@ mod tests {
             ..Default::default()
         };
         let expected = CompoundSelectStatement {
+            pos: Position::new(1, 1),
             selects: vec![
-                (None, first_select),
-                (Some(CompoundSelectOperator::DistinctUnion), second_select),
+                (None, first_select.clone()),
+                (Some(CompoundSelectOperator::DistinctUnion), second_select.clone()),
+            ],
+            order: None,
+            limit: None,
+        };
+        let mut first_select2 = first_select;
+        first_select2.pos = Position::new(1, 2);
+        let mut second_select2 = second_select;
+        second_select2.pos = Position::new(1, 33);
+        let expected2 = CompoundSelectStatement {
+            pos: Position::new(1, 1),
+            selects: vec![
+                (None, first_select2),
+                (Some(CompoundSelectOperator::DistinctUnion), second_select2),
             ],
             order: None,
             limit: None,
         };
 
         assert_eq!(res.unwrap().1, expected);
-        assert_eq!(res2.unwrap().1, expected);
+        assert_eq!(res2.unwrap().1, expected2);
     }
 
     #[test]
@@ -182,6 +201,7 @@ mod tests {
         let res = compound_selection(Span::new(qstr.as_bytes()));
 
         let first_select = SelectStatement {
+            pos: Position::new(1, 1),
             tables: vec![Table::from("Vote")],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
@@ -192,6 +212,7 @@ mod tests {
             ..Default::default()
         };
         let second_select = SelectStatement {
+            pos: Position::new(1, 30),
             tables: vec![Table::from("Rating")],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
@@ -200,6 +221,7 @@ mod tests {
             ..Default::default()
         };
         let third_select = SelectStatement {
+            pos: Position::new(1, 74),
             tables: vec![Table::from("Vote")],
             fields: vec![
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
@@ -213,6 +235,7 @@ mod tests {
         };
 
         let expected = CompoundSelectStatement {
+            pos: Position::new(1, 1),
             selects: vec![
                 (None, first_select),
                 (Some(CompoundSelectOperator::DistinctUnion), second_select),
@@ -231,6 +254,7 @@ mod tests {
         let res = compound_selection(Span::new(qstr.as_bytes()));
 
         let first_select = SelectStatement {
+            pos: Position::new(1, 1),
             tables: vec![Table::from("Vote")],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
@@ -241,6 +265,7 @@ mod tests {
             ..Default::default()
         };
         let second_select = SelectStatement {
+            pos: Position::new(1, 34),
             tables: vec![Table::from("Rating")],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
@@ -249,6 +274,7 @@ mod tests {
             ..Default::default()
         };
         let expected = CompoundSelectStatement {
+            pos: Position::new(1, 1),
             selects: vec![
                 (None, first_select),
                 (Some(CompoundSelectOperator::Union), second_select),

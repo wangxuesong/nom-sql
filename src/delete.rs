@@ -10,10 +10,11 @@ use nom::sequence::{delimited, tuple};
 use nom::IResult;
 use select::where_clause;
 use table::Table;
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct DeleteStatement {
+    pub pos: Position,
     pub table: Table,
     pub where_clause: Option<ConditionExpression>,
 }
@@ -42,6 +43,7 @@ pub fn deletion(i: Span) -> IResult<Span, DeleteStatement> {
     Ok((
         remaining_input,
         DeleteStatement {
+            pos: Position::from(i),
             table,
             where_clause,
         },
@@ -65,6 +67,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             DeleteStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 ..Default::default()
             }
@@ -78,6 +81,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             DeleteStatement {
+                pos: Position::new(1, 1),
                 table: Table::from(("db1","users")),
                 ..Default::default()
             }
@@ -97,6 +101,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             DeleteStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 where_clause: expected_where_cond,
                 ..Default::default()

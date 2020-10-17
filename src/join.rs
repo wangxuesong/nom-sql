@@ -113,6 +113,7 @@ mod tests {
     use condition::ConditionExpression::{self, *};
     use condition::ConditionTree;
     use select::{selection, JoinClause, SelectStatement};
+    use Position;
 
     #[test]
     fn inner_join() {
@@ -128,6 +129,7 @@ mod tests {
         };
         let join_cond = ConditionExpression::ComparisonOp(ct);
         let expected_stmt = SelectStatement {
+            pos: Position::new(1, 1),
             tables: vec![Table::from("tags")],
             fields: vec![FieldDefinitionExpression::AllInTable("tags".into())],
             join: vec![JoinClause {

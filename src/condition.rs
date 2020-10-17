@@ -333,6 +333,7 @@ mod tests {
     use arithmetic::{ArithmeticBase, ArithmeticOperator};
     use column::Column;
     use common::{FieldDefinitionExpression, ItemPlaceholder, Literal, Operator};
+    use Position;
 
     fn columns(cols: &[&str]) -> Vec<FieldDefinitionExpression> {
         cols.iter()
@@ -722,6 +723,7 @@ mod tests {
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
+            pos: Position::new(1, 9),
             tables: vec![Table::from("foo")],
             fields: columns(&["col"]),
             ..Default::default()
@@ -747,6 +749,7 @@ mod tests {
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
+            pos: Position::new(1, 11),
             tables: vec![Table::from("foo")],
             fields: columns(&["col"]),
             ..Default::default()
@@ -768,6 +771,7 @@ mod tests {
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
+            pos: Position::new(1, 13),
             tables: vec![Table::from("foo")],
             fields: columns(&["col"]),
             ..Default::default()
@@ -791,6 +795,7 @@ mod tests {
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
+            pos: Position::new(1, 13),
             tables: vec![Table::from("PaperConflict")],
             fields: columns(&["paperId"]),
             ..Default::default()

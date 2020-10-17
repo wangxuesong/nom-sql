@@ -81,6 +81,7 @@ mod tests {
     use std::hash::{Hash, Hasher};
 
     use table::Table;
+    use Position;
 
     #[test]
     fn hash_query() {
@@ -89,6 +90,7 @@ mod tests {
         assert!(res.is_ok());
 
         let expected = SqlQuery::Insert(InsertStatement {
+            pos: Position::new(1, 1),
             table: Table::from("users"),
             fields: None,
             data: vec![vec![42.into(), "test".into()]],

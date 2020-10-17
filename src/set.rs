@@ -5,10 +5,11 @@ use std::{fmt, str};
 use common::{literal, sql_identifier, statement_terminator, Literal};
 use nom::sequence::tuple;
 use nom::{IResult, AsBytes};
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct SetStatement {
+    pub pos: Position,
     pub variable: String,
     pub value: Literal,
 }
@@ -33,7 +34,7 @@ pub fn set(i: Span) -> IResult<Span, SetStatement> {
         statement_terminator,
     ))(i)?;
     let variable = String::from(str::from_utf8(var.as_bytes()).unwrap());
-    Ok((remaining_input, SetStatement { variable, value }))
+    Ok((remaining_input, SetStatement { pos: Position::from(i), variable, value }))
 }
 
 #[cfg(test)]
@@ -47,6 +48,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             SetStatement {
+                pos: Position::new(1, 1),
                 variable: "SQL_AUTO_IS_NULL".to_owned(),
                 value: 0.into(),
             }
@@ -60,6 +62,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             SetStatement {
+                pos: Position::new(1, 1),
                 variable: "@var".to_owned(),
                 value: 123.into(),
             }

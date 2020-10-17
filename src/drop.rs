@@ -8,10 +8,11 @@ use nom::combinator::opt;
 use nom::sequence::{delimited, tuple};
 use nom::IResult;
 use table::Table;
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct DropTableStatement {
+    pub pos: Position,
     pub tables: Vec<Table>,
     pub if_exists: bool,
 }
@@ -56,6 +57,7 @@ pub fn drop_table(i: Span) -> IResult<Span, DropTableStatement> {
     Ok((
         remaining_input,
         DropTableStatement {
+            pos: Position::from(i),
             tables,
             if_exists: opt_if_exists.is_some(),
         },
@@ -74,6 +76,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             DropTableStatement {
+                pos: Position::new(1, 1),
                 tables: vec![Table::from("users")],
                 if_exists: false,
             }

@@ -14,10 +14,11 @@ use nom::multi::many1;
 use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 use table::Table;
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct InsertStatement {
+    pub pos: Position,
     pub table: Table,
     pub fields: Option<Vec<Column>>,
     pub data: Vec<Vec<Literal>>,
@@ -105,6 +106,7 @@ pub fn insertion(i: Span) -> IResult<Span, InsertStatement> {
     Ok((
         remaining_input,
         InsertStatement {
+            pos: Position::from(i),
             table,
             fields,
             data,
@@ -130,6 +132,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: None,
                 data: vec![vec![42.into(), "test".into()]],
@@ -146,6 +149,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from(("db1","users")),
                 fields: None,
                 data: vec![vec![42.into(), "test".into()]],
@@ -162,6 +166,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: None,
                 data: vec![vec![
@@ -183,6 +188,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![42.into(), "test".into()]],
@@ -200,6 +206,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![42.into(), "test".into()]],
@@ -216,6 +223,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![
@@ -235,6 +243,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![
@@ -261,6 +270,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("keystores"),
                 fields: Some(vec![Column::from("key"), Column::from("value")]),
                 data: vec![vec![
@@ -284,6 +294,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![42.into(), "test".into()]],

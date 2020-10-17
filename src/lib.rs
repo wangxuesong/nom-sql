@@ -34,6 +34,32 @@ use nom_locate::LocatedSpan;
 
 pub type Span<'a> = LocatedSpan<&'a [u8]>;
 
+#[derive(Clone, Debug,Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub struct Position {
+    pub line: u32,
+    pub offset: usize,
+}
+
+impl Position{
+    pub fn new(line: u32, offset: usize) -> Position {
+        Position{line,offset}
+    }
+
+    pub fn new_empty() -> Position{
+        Position{line:0, offset:0}
+    }
+
+    fn from_span(span: Span) -> Position {
+        Position{ line: span.location_line(), offset: span.get_column() }
+    }
+}
+
+impl<'a> From<Span<'a>> for Position {
+    fn from(s: Span<'a>) -> Self {
+        Position::from_span(s)
+    }
+}
+
 pub mod parser;
 
 #[macro_use]

@@ -11,10 +11,11 @@ use nom::sequence::tuple;
 use nom::IResult;
 use select::where_clause;
 use table::Table;
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct UpdateStatement {
+    pub pos: Position,
     pub table: Table,
     pub fields: Vec<(Column, FieldValueExpression)>,
     pub where_clause: Option<ConditionExpression>,
@@ -57,6 +58,7 @@ pub fn updating(i: Span) -> IResult<Span, UpdateStatement> {
     Ok((
         remaining_input,
         UpdateStatement {
+            pos: Position::from(i),
             table,
             fields,
             where_clause,
@@ -83,6 +85,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: vec![
                     (
@@ -115,6 +118,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: vec![
                     (
@@ -158,6 +162,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("stories"),
                 fields: vec![(
                     Column::from("hotness"),
@@ -195,6 +200,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: vec![(
                     Column::from("karma"),
@@ -220,6 +226,7 @@ mod tests {
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
+                pos: Position::new(1, 1),
                 table: Table::from("users"),
                 fields: vec![(
                     Column::from("karma"),
