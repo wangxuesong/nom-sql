@@ -2,9 +2,11 @@ use std::fmt;
 use std::str;
 
 use keywords::escape_if_keyword;
+use Position;
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Table {
+    pub pos: Position,
     pub name: String,
     pub alias: Option<String>,
     pub schema: Option<String>,
@@ -26,6 +28,7 @@ impl fmt::Display for Table {
 impl<'a> From<&'a str> for Table {
     fn from(t: &str) -> Table {
         Table {
+            pos: Default::default(),
             name: String::from(t),
             alias: None,
             schema: None,
@@ -35,6 +38,7 @@ impl<'a> From<&'a str> for Table {
 impl<'a> From<(&'a str, &'a str)> for Table {
     fn from(t: (&str, &str)) -> Table {
         Table {
+            pos: Default::default(),
             name: String::from(t.1),
             alias: None,
             schema: Some(String::from(t.0)),

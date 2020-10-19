@@ -77,6 +77,15 @@ mod tests {
     use condition::ConditionTree;
     use table::Table;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
     #[test]
     fn simple_update() {
         let qstring = "UPDATE users SET id = 42, name = 'test'";
@@ -86,7 +95,7 @@ mod tests {
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![
                     (
                         Column::from("id"),
@@ -119,7 +128,7 @@ mod tests {
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![
                     (
                         Column::from("id"),
@@ -163,7 +172,7 @@ mod tests {
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("stories"),
+                table: table_from_str("stories", Position::new(1, 8)),
                 fields: vec![(
                     Column::from("hotness"),
                     FieldValueExpression::Literal(LiteralExpression::from(Literal::FixedPoint(
@@ -201,7 +210,7 @@ mod tests {
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![(
                     Column::from("karma"),
                     FieldValueExpression::Arithmetic(expected_ae),
@@ -227,7 +236,7 @@ mod tests {
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![(
                     Column::from("karma"),
                     FieldValueExpression::Arithmetic(expected_ae),

@@ -139,6 +139,15 @@ mod tests {
     use table::Table;
     use Position;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
     #[test]
     fn union() {
         let qstr = "SELECT id, 1 FROM Vote UNION SELECT id, stars from Rating;";
@@ -148,7 +157,7 @@ mod tests {
 
         let first_select = SelectStatement {
             pos: Position::new(1, 1),
-            tables: vec![Table::from("Vote")],
+            tables: vec![table_from_str("Vote", Position::new(1, 19))],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
@@ -159,7 +168,7 @@ mod tests {
         };
         let second_select = SelectStatement {
             pos: Position::new(1, 30),
-            tables: vec![Table::from("Rating")],
+            tables: vec![table_from_str("Rating", Position::new(1, 52))],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
                 FieldDefinitionExpression::Col(Column::from("stars")),
@@ -177,8 +186,10 @@ mod tests {
         };
         let mut first_select2 = first_select;
         first_select2.pos = Position::new(1, 2);
+        first_select2.tables[0].pos = Position::new(1, 20);
         let mut second_select2 = second_select;
         second_select2.pos = Position::new(1, 33);
+        second_select2.tables[0].pos = Position::new(1, 55);
         let expected2 = CompoundSelectStatement {
             pos: Position::new(1, 1),
             selects: vec![
@@ -202,7 +213,7 @@ mod tests {
 
         let first_select = SelectStatement {
             pos: Position::new(1, 1),
-            tables: vec![Table::from("Vote")],
+            tables: vec![table_from_str("Vote", Position::new(1, 19))],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
@@ -213,7 +224,7 @@ mod tests {
         };
         let second_select = SelectStatement {
             pos: Position::new(1, 30),
-            tables: vec![Table::from("Rating")],
+            tables: vec![table_from_str("Rating", Position::new(1, 52))],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
                 FieldDefinitionExpression::Col(Column::from("stars")),
@@ -222,7 +233,7 @@ mod tests {
         };
         let third_select = SelectStatement {
             pos: Position::new(1, 74),
-            tables: vec![Table::from("Vote")],
+            tables: vec![table_from_str("Vote", Position::new(1, 92))],
             fields: vec![
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
                     Literal::Integer(42).into(),
@@ -255,7 +266,7 @@ mod tests {
 
         let first_select = SelectStatement {
             pos: Position::new(1, 1),
-            tables: vec![Table::from("Vote")],
+            tables: vec![table_from_str("Vote", Position::new(1, 19))],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
@@ -266,7 +277,7 @@ mod tests {
         };
         let second_select = SelectStatement {
             pos: Position::new(1, 34),
-            tables: vec![Table::from("Rating")],
+            tables: vec![table_from_str("Rating", Position::new(1, 56))],
             fields: vec![
                 FieldDefinitionExpression::Col(Column::from("id")),
                 FieldDefinitionExpression::Col(Column::from("stars")),

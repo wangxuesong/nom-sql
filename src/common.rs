@@ -17,7 +17,7 @@ use nom::error::{ErrorKind, ParseError};
 use nom::multi::{fold_many0, many0, many1};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use table::Table;
-use Span;
+use ::{Span, Position};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum SqlType {
@@ -998,6 +998,7 @@ pub fn schema_table_reference(i: Span) -> IResult<Span, Table> {
 			opt(as_alias)
 		)),
 	|tup| Table {
+        pos: Position::from_span(i),
         name: String::from(str::from_utf8(tup.1.fragment()).unwrap()),
         alias: match tup.2 {
             Some(a) => Some(String::from(a)),
@@ -1013,6 +1014,7 @@ pub fn schema_table_reference(i: Span) -> IResult<Span, Table> {
 // Parse a reference to a named table, with an optional alias
 pub fn table_reference(i: Span) -> IResult<Span, Table> {
     map(pair(sql_identifier, opt(as_alias)), |tup| Table {
+        pos: Position::from_span(i),
         name: String::from(str::from_utf8(tup.0.fragment()).unwrap()),
         alias: match tup.1 {
             Some(a) => Some(String::from(a)),

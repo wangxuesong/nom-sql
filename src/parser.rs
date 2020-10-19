@@ -83,6 +83,15 @@ mod tests {
     use table::Table;
     use Position;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
     #[test]
     fn hash_query() {
         let qstring = "INSERT INTO users VALUES (42, \"test\");";
@@ -91,7 +100,7 @@ mod tests {
 
         let expected = SqlQuery::Insert(InsertStatement {
             pos: Position::new(1, 1),
-            table: Table::from("users"),
+            table: table_from_str("users", Position::new(1, 13)),
             fields: None,
             data: vec![vec![42.into(), "test".into()]],
             ..Default::default()

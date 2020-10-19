@@ -124,6 +124,21 @@ mod tests {
     use common::ItemPlaceholder;
     use table::Table;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
+    fn table_from_schema(name: (&str, &str), pos: Position) -> Table {
+        let mut table = Table::from(name);
+        table.pos = pos;
+        table
+    }
+
     #[test]
     fn simple_insert() {
         let qstring = "INSERT INTO users VALUES (42, \"test\");";
@@ -133,7 +148,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 fields: None,
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
@@ -150,7 +165,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from(("db1","users")),
+                table: table_from_schema(("db1","users"), Position::new(1, 13)),
                 fields: None,
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
@@ -167,7 +182,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 fields: None,
                 data: vec![vec![
                     42.into(),
@@ -189,7 +204,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
@@ -207,7 +222,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
@@ -224,7 +239,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![
                     vec![42.into(), "test".into()],
@@ -244,7 +259,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![
                     Literal::Placeholder(ItemPlaceholder::QuestionMark),
@@ -271,7 +286,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("keystores"),
+                table: table_from_str("keystores", Position::new(1, 13)),
                 fields: Some(vec![Column::from("key"), Column::from("value")]),
                 data: vec![vec![
                     Literal::Placeholder(ItemPlaceholder::DollarNumber(1)),
@@ -295,7 +310,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 fields: Some(vec![Column::from("id"), Column::from("name")]),
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()

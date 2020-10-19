@@ -461,6 +461,21 @@ mod tests {
     use column::Column;
     use table::Table;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
+    fn table_from_schema(name: (&str, &str), pos: Position) -> Table {
+        let mut table = Table::from(name);
+        table.pos = pos;
+        table
+    }
+
     #[test]
     fn sql_types() {
         let type0 = "bigint(20)";
@@ -505,7 +520,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
                     ColumnSpecification::new(Column::from("users.name"), SqlType::Varchar(255)),
@@ -524,7 +539,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("t"),
+                table: table_from_str("t", Position::new(1, 14)),
                 fields: vec![ColumnSpecification::new(
                     Column::from("t.x"),
                     SqlType::Int(32)
@@ -542,7 +557,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from(("db1","t")),
+                table: table_from_schema(("db1","t"), Position::new(1, 14)),
                 fields: vec![ColumnSpecification::new(
                     Column::from("t.x"),
                     SqlType::Int(32)
@@ -561,7 +576,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("user_newtalk"),
+                table: table_from_str("user_newtalk", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
                         Column::from("user_newtalk.user_id"),
@@ -651,7 +666,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
                     ColumnSpecification::new(Column::from("users.name"), SqlType::Varchar(255)),
@@ -671,7 +686,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
                     ColumnSpecification::new(Column::from("users.name"), SqlType::Varchar(255)),
@@ -702,7 +717,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("django_admin_log"),
+                table: table_from_str("django_admin_log", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
                         Column::from("django_admin_log.id"),
@@ -759,7 +774,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("auth_group"),
+                table: table_from_str("auth_group", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
                         Column::from("auth_group.id"),
@@ -810,7 +825,7 @@ mod tests {
                 fields: vec![],
                 definition: Box::new(SelectSpecification::Simple(SelectStatement {
                     pos: Position::new(1, 18),
-                    tables: vec![Table::from("users")],
+                    tables: vec![table_from_str("users", Position::new(1, 32))],
                     fields: vec![FieldDefinitionExpression::All],
                     where_clause: Some(ConditionExpression::ComparisonOp(ConditionTree {
                         left: Box::new(ConditionExpression::Base(ConditionBase::Field(
@@ -848,7 +863,7 @@ mod tests {
                             None,
                             SelectStatement {
                                 pos: Position::new(1, 18),
-                                tables: vec![Table::from("users")],
+                                tables: vec![table_from_str("users", Position::new(1, 32))],
                                 fields: vec![FieldDefinitionExpression::All],
                                 ..Default::default()
                             },
@@ -857,7 +872,7 @@ mod tests {
                             Some(CompoundSelectOperator::DistinctUnion),
                             SelectStatement {
                                 pos: Position::new(1, 44),
-                                tables: vec![Table::from("old_users")],
+                                tables: vec![table_from_str("old_users", Position::new(1, 58))],
                                 fields: vec![FieldDefinitionExpression::All],
                                 ..Default::default()
                             },
@@ -895,7 +910,7 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("comments"),
+                table: table_from_str("comments", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
                         Column::from("comments.id"),

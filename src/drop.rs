@@ -69,6 +69,15 @@ mod tests {
     use super::*;
     use table::Table;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
     #[test]
     fn simple_drop_table() {
         let qstring = "DROP TABLE users;";
@@ -77,7 +86,7 @@ mod tests {
             res.unwrap().1,
             DropTableStatement {
                 pos: Position::new(1, 1),
-                tables: vec![Table::from("users")],
+                tables: vec![table_from_str("users", Position::new(1, 12))],
                 if_exists: false,
             }
         );

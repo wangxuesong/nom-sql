@@ -60,6 +60,21 @@ mod tests {
     use condition::ConditionTree;
     use table::Table;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
+    fn table_from_schema(name: (&str, &str), pos: Position) -> Table {
+        let mut table = Table::from(name);
+        table.pos = pos;
+        table
+    }
+
     #[test]
     fn simple_delete() {
         let qstring = "DELETE FROM users;";
@@ -68,7 +83,7 @@ mod tests {
             res.unwrap().1,
             DeleteStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 ..Default::default()
             }
         );
@@ -82,7 +97,7 @@ mod tests {
             res.unwrap().1,
             DeleteStatement {
                 pos: Position::new(1, 1),
-                table: Table::from(("db1","users")),
+                table: table_from_schema(("db1","users"), Position::new(1, 13)),
                 ..Default::default()
             }
         );
@@ -102,7 +117,7 @@ mod tests {
             res.unwrap().1,
             DeleteStatement {
                 pos: Position::new(1, 1),
-                table: Table::from("users"),
+                table: table_from_str("users", Position::new(1, 13)),
                 where_clause: expected_where_cond,
                 ..Default::default()
             }

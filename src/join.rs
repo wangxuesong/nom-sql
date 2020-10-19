@@ -115,6 +115,15 @@ mod tests {
     use select::{selection, JoinClause, SelectStatement};
     use Position;
 
+    fn table_from_str(name: &str, pos: Position) -> Table {
+        Table{
+            pos,
+            name: String::from(name),
+            alias: None,
+            schema: None
+        }
+    }
+
     #[test]
     fn inner_join() {
         let qstring = "SELECT tags.* FROM tags \
@@ -130,11 +139,11 @@ mod tests {
         let join_cond = ConditionExpression::ComparisonOp(ct);
         let expected_stmt = SelectStatement {
             pos: Position::new(1, 1),
-            tables: vec![Table::from("tags")],
+            tables: vec![table_from_str("tags", Position::new(1, 20))],
             fields: vec![FieldDefinitionExpression::AllInTable("tags".into())],
             join: vec![JoinClause {
                 operator: JoinOperator::InnerJoin,
-                right: JoinRightSide::Table(Table::from("taggings")),
+                right: JoinRightSide::Table(table_from_str("taggings", Position::new(1, 36))),
                 constraint: JoinConstraint::On(join_cond),
             }],
             ..Default::default()

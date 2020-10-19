@@ -718,13 +718,22 @@ mod tests {
         use table::Table;
         use ConditionBase::*;
 
+        fn table_from_str(name: &str, pos: Position) -> Table {
+            Table{
+                pos,
+                name: String::from(name),
+                alias: None,
+                schema: None
+            }
+        }
+
         let cond = "bar in (select col from foo)";
 
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 9),
-            tables: vec![Table::from("foo")],
+            tables: vec![table_from_str("foo", Position::new(1, 25))],
             fields: columns(&["col"]),
             ..Default::default()
         });
@@ -744,13 +753,22 @@ mod tests {
         use std::default::Default;
         use table::Table;
 
+        fn table_from_str(name: &str, pos: Position) -> Table {
+            Table{
+                pos,
+                name: String::from(name),
+                alias: None,
+                schema: None
+            }
+        }
+
         let cond = "exists (  select col from foo  )";
 
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 11),
-            tables: vec![Table::from("foo")],
+            tables: vec![table_from_str("foo", Position::new(1, 27))],
             fields: columns(&["col"]),
             ..Default::default()
         });
@@ -766,13 +784,22 @@ mod tests {
         use std::default::Default;
         use table::Table;
 
+        fn table_from_str(name: &str, pos: Position) -> Table {
+            Table{
+                pos,
+                name: String::from(name),
+                alias: None,
+                schema: None
+            }
+        }
+
         let cond = "not exists (select col from foo)";
 
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 13),
-            tables: vec![Table::from("foo")],
+            tables: vec![table_from_str("foo", Position::new(1, 29))],
             fields: columns(&["col"]),
             ..Default::default()
         });
@@ -790,13 +817,22 @@ mod tests {
         use table::Table;
         use ConditionBase::*;
 
+        fn table_from_str(name: &str, pos: Position) -> Table {
+            Table{
+                pos,
+                name: String::from(name),
+                alias: None,
+                schema: None
+            }
+        }
+
         let cond = "paperId in (select paperId from PaperConflict) and size > 0";
 
         let res = condition_expr(Span::new(cond.as_bytes()));
 
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 13),
-            tables: vec![Table::from("PaperConflict")],
+            tables: vec![table_from_str("PaperConflict", Position::new(1, 33))],
             fields: columns(&["paperId"]),
             ..Default::default()
         });
