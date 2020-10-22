@@ -200,12 +200,16 @@ mod tests {
         let qstring = "INSERT INTO users (id, name) VALUES (42, \"test\");";
 
         let res = insertion(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 20);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 24);
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 13)),
-                fields: Some(vec![Column::from("id"), Column::from("name")]),
+                fields: Some(vec![column, column1]),
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
             }
@@ -218,12 +222,16 @@ mod tests {
         let qstring = "INSERT INTO users(id, name) VALUES(42, \"test\");";
 
         let res = insertion(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 19);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 23);
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 13)),
-                fields: Some(vec![Column::from("id"), Column::from("name")]),
+                fields: Some(vec![column, column1]),
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
             }
@@ -235,12 +243,16 @@ mod tests {
         let qstring = "INSERT INTO users (id, name) VALUES (42, \"test\"),(21, \"test2\");";
 
         let res = insertion(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 20);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 24);
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 13)),
-                fields: Some(vec![Column::from("id"), Column::from("name")]),
+                fields: Some(vec![column, column1]),
                 data: vec![
                     vec![42.into(), "test".into()],
                     vec![21.into(), "test2".into()],
@@ -255,12 +267,16 @@ mod tests {
         let qstring = "INSERT INTO users (id, name) VALUES (?, ?);";
 
         let res = insertion(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 20);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 24);
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 13)),
-                fields: Some(vec![Column::from("id"), Column::from("name")]),
+                fields: Some(vec![column, column1]),
                 data: vec![vec![
                     Literal::Placeholder(ItemPlaceholder::QuestionMark),
                     Literal::Placeholder(ItemPlaceholder::QuestionMark)
@@ -276,24 +292,32 @@ mod tests {
                        ON DUPLICATE KEY UPDATE `value` = `value` + 1";
 
         let res = insertion(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("value");
+        column.pos = Position::new(1, 90);
         let expected_ae = ArithmeticExpression {
             op: ArithmeticOperator::Add,
-            left: ArithmeticBase::Column(Column::from("value")),
+            left: ArithmeticBase::Column(column),
             right: ArithmeticBase::Scalar(1.into()),
             alias: None,
         };
+        let mut column1 = Column::from("key");
+        column1.pos = Position::new(1, 24);
+        let mut column2 = Column::from("value");
+        column2.pos = Position::new(1, 31);
+        let mut column3 = Column::from("value");
+        column3.pos = Position::new(1, 80);
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("keystores", Position::new(1, 13)),
-                fields: Some(vec![Column::from("key"), Column::from("value")]),
+                fields: Some(vec![column1, column2]),
                 data: vec![vec![
                     Literal::Placeholder(ItemPlaceholder::DollarNumber(1)),
                     Literal::Placeholder(ItemPlaceholder::ColonNumber(2))
                 ]],
                 on_duplicate: Some(vec![(
-                    Column::from("value"),
+                                            column3,
                     FieldValueExpression::Arithmetic(expected_ae),
                 ),]),
                 ..Default::default()
@@ -306,12 +330,16 @@ mod tests {
         let qstring = "INSERT INTO users (id, name) VALUES ( 42, \"test\");";
 
         let res = insertion(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 20);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 24);
         assert_eq!(
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 13)),
-                fields: Some(vec![Column::from("id"), Column::from("name")]),
+                fields: Some(vec![column, column1]),
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
             }

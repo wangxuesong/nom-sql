@@ -335,10 +335,16 @@ mod tests {
     use common::{FieldDefinitionExpression, ItemPlaceholder, Literal, Operator};
     use Position;
 
-    fn columns(cols: &[&str]) -> Vec<FieldDefinitionExpression> {
+    fn columns(cols: &[(&str, Position)]) -> Vec<FieldDefinitionExpression> {
         cols.iter()
-            .map(|c| FieldDefinitionExpression::Col(Column::from(*c)))
+            .map(|c| FieldDefinitionExpression::Col(column(c)))
             .collect()
+    }
+
+    fn column(c: &(&str, Position)) -> Column {
+        let mut col = Column::from((*c).0);
+        col.pos = (*c).1.clone();
+        col
     }
 
     fn flat_condition_tree(
@@ -360,8 +366,10 @@ mod tests {
         let cond = "a.foo = ? and b.bar = 42";
 
         let res = condition_expr(Span::new(cond.as_bytes()));
-        let c1 = Column::from("a.foo");
-        let c2 = Column::from("b.bar");
+        let mut c1 = Column::from("a.foo");
+        c1.pos = Position::new(1, 1);
+        let mut c2 = Column::from("b.bar");
+        c2.pos = Position::new(1, 15);
         let mut expected_cols = HashSet::new();
         expected_cols.insert(&c1);
         expected_cols.insert(&c2);
@@ -378,6 +386,7 @@ mod tests {
         x_equality_variable_placeholder(
             "foo = ?",
             Literal::Placeholder(ItemPlaceholder::QuestionMark),
+            Position::new(1, 1)
         );
     }
 
@@ -386,6 +395,7 @@ mod tests {
         x_equality_variable_placeholder(
             "foo = :12",
             Literal::Placeholder(ItemPlaceholder::ColonNumber(12)),
+            Position::new(1, 1)
         );
     }
 
@@ -394,25 +404,28 @@ mod tests {
         x_equality_variable_placeholder(
             "foo = $12",
             Literal::Placeholder(ItemPlaceholder::DollarNumber(12)),
+            Position::new(1, 1)
         );
     }
 
-    fn x_equality_variable_placeholder(cond: &str, literal: Literal) {
+    fn x_equality_variable_placeholder(cond: &str, literal: Literal, pos: Position) {
         let res = condition_expr(Span::new(cond.as_bytes()));
         assert_eq!(
             res.unwrap().1,
             flat_condition_tree(
                 Operator::Equal,
-                ConditionBase::Field(Column::from("foo")),
+                ConditionBase::Field(column(&("foo", pos))),
                 ConditionBase::Literal(literal)
             )
         );
     }
 
-    fn x_operator_value(op: ArithmeticOperator, value: Literal) -> ConditionExpression {
+    fn x_operator_value(op: ArithmeticOperator, value: Literal, pos: Position) -> ConditionExpression {
+        let mut column = Column::from("x");
+        column.pos = pos;
         ConditionExpression::Arithmetic(Box::new(ArithmeticExpression::new(
             op,
-            ArithmeticBase::Column(Column::from("x")),
+            ArithmeticBase::Column(column),
             ArithmeticBase::Scalar(value),
             None,
         )))
@@ -424,7 +437,7 @@ mod tests {
         let res = simple_expr(Span::new(cond.as_bytes()));
         assert_eq!(
             res.unwrap().1,
-            x_operator_value(ArithmeticOperator::Add, 3.into())
+            x_operator_value(ArithmeticOperator::Add, 3.into(), Position::new(1, 1))
         );
     }
 
@@ -437,7 +450,8 @@ mod tests {
             res.unwrap().1,
             ConditionExpression::Bracketed(Box::new(x_operator_value(
                 ArithmeticOperator::Subtract,
-                2.into()
+                2.into(),
+                Position::new(1, 3)
             )))
         );
     }
@@ -451,7 +465,8 @@ mod tests {
             res.unwrap().1,
             ConditionExpression::Bracketed(Box::new(x_operator_value(
                 ArithmeticOperator::Multiply,
-                5.into()
+                5.into(),
+                Position::new(1, 3)
             )))
         );
     }
@@ -465,7 +480,7 @@ mod tests {
             res.unwrap().1,
             ConditionExpression::ComparisonOp(ConditionTree {
                 operator: Operator::Equal,
-                left: Box::new(x_operator_value(ArithmeticOperator::Multiply, 3.into())),
+                left: Box::new(x_operator_value(ArithmeticOperator::Multiply, 3.into(), Position::new(1, 1))),
                 right: Box::new(ConditionExpression::Base(ConditionBase::Literal(21.into())))
             })
         );
@@ -480,7 +495,7 @@ mod tests {
             ConditionExpression::Bracketed(Box::new(ConditionExpression::ComparisonOp(
                 ConditionTree {
                     operator: Operator::Equal,
-                    left: Box::new(x_operator_value(ArithmeticOperator::Subtract, 7.into())),
+                    left: Box::new(x_operator_value(ArithmeticOperator::Subtract, 7.into(), Position::new(1, 2))),
                     right: Box::new(ConditionExpression::Base(ConditionBase::Literal(15.into())))
                 }
             )))
@@ -498,7 +513,8 @@ mod tests {
                 operator: Operator::Equal,
                 left: Box::new(ConditionExpression::Bracketed(Box::new(x_operator_value(
                     ArithmeticOperator::Add,
-                    2.into()
+                    2.into(),
+                    Position::new(1, 3)
                 )))),
                 right: Box::new(ConditionExpression::Base(ConditionBase::Literal(15.into())))
             })
@@ -516,11 +532,13 @@ mod tests {
                 operator: Operator::Equal,
                 left: Box::new(ConditionExpression::Bracketed(Box::new(x_operator_value(
                     ArithmeticOperator::Add,
-                    2.into()
+                    2.into(),
+                    Position::new(1, 3)
                 )))),
                 right: Box::new(ConditionExpression::Bracketed(Box::new(x_operator_value(
                     ArithmeticOperator::Multiply,
-                    3.into()
+                    3.into(),
+                    Position::new(1, 12)
                 ))))
             })
         );
@@ -536,7 +554,7 @@ mod tests {
             res1.unwrap().1,
             flat_condition_tree(
                 Operator::Equal,
-                ConditionBase::Field(Column::from("foo")),
+                ConditionBase::Field(column(&("foo", Position::new(1, 1)))),
                 ConditionBase::Literal(Literal::Integer(42 as i64))
             )
         );
@@ -546,7 +564,7 @@ mod tests {
             res2.unwrap().1,
             flat_condition_tree(
                 Operator::Equal,
-                ConditionBase::Field(Column::from("foo")),
+                ConditionBase::Field(column(&("foo", Position::new(1, 1)))),
                 ConditionBase::Literal(Literal::String(String::from("hello")))
             )
         );
@@ -562,7 +580,7 @@ mod tests {
             res1.unwrap().1,
             flat_condition_tree(
                 Operator::GreaterOrEqual,
-                ConditionBase::Field(Column::from("foo")),
+                ConditionBase::Field(column(&("foo", Position::new(1, 1)))),
                 ConditionBase::Literal(Literal::Integer(42 as i64))
             )
         );
@@ -572,7 +590,7 @@ mod tests {
             res2.unwrap().1,
             flat_condition_tree(
                 Operator::LessOrEqual,
-                ConditionBase::Field(Column::from("foo")),
+                ConditionBase::Field(column(&("foo", Position::new(1, 1)))),
                 ConditionBase::Literal(Literal::Integer(5 as i64))
             )
         );
@@ -587,7 +605,7 @@ mod tests {
             res.unwrap().1,
             flat_condition_tree(
                 Operator::Equal,
-                ConditionBase::Field(Column::from("foo")),
+                ConditionBase::Field(column(&("foo", Position::new(1, 1)))),
                 ConditionBase::Literal(Literal::String(String::from("")))
             )
         );
@@ -603,7 +621,7 @@ mod tests {
 
         let a = ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("foo".into()))),
+            left: Box::new(Base(Field(column(&("foo", Position::new(1, 2)))))),
             right: Box::new(Base(Literal(Literal::Placeholder(
                 ItemPlaceholder::QuestionMark,
             )))),
@@ -611,7 +629,7 @@ mod tests {
 
         let b = ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("bar".into()))),
+            left: Box::new(Base(Field(column(&("bar", Position::new(1, 13)))))),
             right: Box::new(Base(Literal(Literal::Integer(12.into())))),
         });
 
@@ -623,7 +641,7 @@ mod tests {
 
         let right = ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("foobar".into()))),
+            left: Box::new(Base(Field(column(&("foobar", Position::new(1, 27)))))),
             right: Box::new(Base(Literal(Literal::String("a".into())))),
         });
 
@@ -647,7 +665,7 @@ mod tests {
 
         let a = ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("foo".into()))),
+            left: Box::new(Base(Field(column(&("foo", Position::new(1, 1)))))),
             right: Box::new(Base(Literal(Literal::Placeholder(
                 ItemPlaceholder::QuestionMark,
             )))),
@@ -655,7 +673,7 @@ mod tests {
 
         let b = ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("bar".into()))),
+            left: Box::new(Base(Field(column(&("bar", Position::new(1, 13)))))),
             right: Box::new(Base(Literal(Literal::Integer(12.into())))),
         });
 
@@ -667,7 +685,7 @@ mod tests {
 
         let right = ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("foobar".into()))),
+            left: Box::new(Base(Field(column(&("foobar", Position::new(1, 25)))))),
             right: Box::new(Base(Literal(Literal::String("a".into())))),
         });
 
@@ -691,13 +709,13 @@ mod tests {
 
         let left = NegationOp(Box::new(ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("bar".into()))),
+            left: Box::new(Base(Field(column(&("bar", Position::new(1, 5)))))),
             right: Box::new(Base(Literal(Integer(12.into())))),
         })));
 
         let right = ComparisonOp(ConditionTree {
             operator: Operator::Equal,
-            left: Box::new(Base(Field("foobar".into()))),
+            left: Box::new(Base(Field(column(&("foobar", Position::new(1, 17)))))),
             right: Box::new(Base(Literal(String("a".into())))),
         });
 
@@ -734,13 +752,13 @@ mod tests {
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 9),
             tables: vec![table_from_str("foo", Position::new(1, 25))],
-            fields: columns(&["col"]),
+            fields: columns(&[("col", Position::new(1, 16))]),
             ..Default::default()
         });
 
         let expected = flat_condition_tree(
             Operator::In,
-            Field("bar".into()),
+            Field(column(&("bar", Position::new(1, 1)))),
             NestedSelect(nested_select),
         );
 
@@ -769,7 +787,7 @@ mod tests {
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 11),
             tables: vec![table_from_str("foo", Position::new(1, 27))],
-            fields: columns(&["col"]),
+            fields: columns(&[("col", Position::new(1, 18))]),
             ..Default::default()
         });
 
@@ -800,7 +818,7 @@ mod tests {
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 13),
             tables: vec![table_from_str("foo", Position::new(1, 29))],
-            fields: columns(&["col"]),
+            fields: columns(&[("col", Position::new(1, 20))]),
             ..Default::default()
         });
 
@@ -833,17 +851,17 @@ mod tests {
         let nested_select = Box::new(SelectStatement {
             pos: Position::new(1, 13),
             tables: vec![table_from_str("PaperConflict", Position::new(1, 33))],
-            fields: columns(&["paperId"]),
+            fields: columns(&[("paperId", Position::new(1, 20))]),
             ..Default::default()
         });
 
         let left = flat_condition_tree(
             Operator::In,
-            Field("paperId".into()),
+            Field(column(&("paperId", Position::new(1, 1)))),
             NestedSelect(nested_select),
         );
 
-        let right = flat_condition_tree(Operator::Greater, Field("size".into()), Literal(0.into()));
+        let right = flat_condition_tree(Operator::Greater, Field(column(&("size", Position::new(1, 52)))), Literal(0.into()));
 
         let expected = ConditionExpression::LogicalOp(ConditionTree {
             left: Box::new(left),
@@ -864,7 +882,7 @@ mod tests {
 
         let expected = flat_condition_tree(
             Operator::In,
-            Field("bar".into()),
+            Field(column(&("bar", Position::new(1, 1)))),
             LiteralList(vec![0.into()]),
         );
 
@@ -880,7 +898,7 @@ mod tests {
 
         let res = condition_expr(Span::new(cond.as_bytes()));
         let expected =
-            flat_condition_tree(Operator::Equal, Field("bar".into()), Literal(Literal::Null));
+            flat_condition_tree(Operator::Equal, Field(column(&("bar", Position::new(1, 1)))), Literal(Literal::Null));
         assert_eq!(res.unwrap().1, expected);
 
         let cond = "bar IS NOT NULL";
@@ -888,7 +906,7 @@ mod tests {
         let res = condition_expr(Span::new(cond.as_bytes()));
         let expected = flat_condition_tree(
             Operator::NotEqual,
-            Field("bar".into()),
+            Field(column(&("bar", Position::new(1, 1)))),
             Literal(Literal::Null),
         );
         assert_eq!(res.unwrap().1, expected);
@@ -914,21 +932,21 @@ mod tests {
             operator: Operator::And,
             left: Box::new(flat_condition_tree(
                 Operator::Equal,
-                Field("read_ribbons.is_following".into()),
+                Field(column(&("read_ribbons.is_following", Position::new(1, 1)))),
                 Literal(Literal::Integer(1.into())),
             )),
             right: Box::new(ConditionExpression::LogicalOp(ConditionTree {
                 operator: Operator::And,
                 left: Box::new(flat_condition_tree(
                     Operator::NotEqual,
-                    Field("comments.user_id".into()),
-                    Field("read_ribbons.user_id".into()),
+                    Field(column(&("comments.user_id", Position::new(1, 39)))),
+                    Field(column(&("read_ribbons.user_id", Position::new(1, 63)))),
                 )),
                 right: Box::new(ConditionExpression::LogicalOp(ConditionTree {
                     operator: Operator::And,
                     left: Box::new(flat_condition_tree(
                         Operator::GreaterOrEqual,
-                        Field("saldo".into()),
+                        Field(column(&("saldo", Position::new(1, 92)))),
                         Literal(Literal::Integer(0.into())),
                     )),
                     right: Box::new(ConditionExpression::LogicalOp(ConditionTree {
@@ -938,21 +956,21 @@ mod tests {
                                 operator: Operator::Or,
                                 left: Box::new(flat_condition_tree(
                                     Operator::Equal,
-                                    Field("parent_comments.user_id".into()),
-                                    Field("read_ribbons.user_id".into()),
+                                    Field(column(&("parent_comments.user_id", Position::new(1, 111)))),
+                                    Field(column(&("read_ribbons.user_id", Position::new(1, 141)))),
                                 )),
                                 right: Box::new(ConditionExpression::Bracketed(Box::new(
                                     ConditionExpression::LogicalOp(ConditionTree {
                                         operator: Operator::And,
                                         left: Box::new(flat_condition_tree(
                                             Operator::Equal,
-                                            Field("parent_comments.user_id".into()),
+                                            Field(column(&("parent_comments.user_id", Position::new(1, 171)))),
                                             Literal(Literal::Null),
                                         )),
                                         right: Box::new(flat_condition_tree(
                                             Operator::Equal,
-                                            Field("stories.user_id".into()),
-                                            Field("read_ribbons.user_id".into()),
+                                            Field(column(&("stories.user_id", Position::new(1, 211)))),
+                                            Field(column(&("read_ribbons.user_id", Position::new(1, 233)))),
                                         )),
                                     }),
                                 ))),
@@ -965,19 +983,19 @@ mod tests {
                                     operator: Operator::Or,
                                     left: Box::new(flat_condition_tree(
                                         Operator::Equal,
-                                        Field("parent_comments.id".into()),
+                                        Field(column(&("parent_comments.id", Position::new(1, 268)))),
                                         Literal(Literal::Null),
                                     )),
                                     right: Box::new(flat_condition_tree(
                                         Operator::GreaterOrEqual,
-                                        Field("saldo".into()),
+                                        Field(column(&("saldo", Position::new(1, 302)))),
                                         Literal(Literal::Integer(0)),
                                     )),
                                 }),
                             ))),
                             right: Box::new(flat_condition_tree(
                                 Operator::Equal,
-                                Field("read_ribbons.user_id".into()),
+                                Field(column(&("read_ribbons.user_id", Position::new(1, 321)))),
                                 Literal(Literal::Placeholder(ItemPlaceholder::QuestionMark)),
                             )),
                         })),
@@ -999,7 +1017,7 @@ mod tests {
         let c1 = res1.unwrap().1;
         let expected1 = flat_condition_tree(
             Operator::NotIn,
-            Field("id".into()),
+            Field(column(&("id", Position::new(1, 1)))),
             LiteralList(vec![1.into(), 2.into()]),
         );
         assert_eq!(c1, expected1);

@@ -131,9 +131,13 @@ mod tests {
 
         let res = selection(Span::new(qstring.as_bytes()));
 
+        let mut c1 = Column::from("tags.id");
+        c1.pos = Position::new(1, 48);
+        let mut c2 = Column::from("taggings.tag_id");
+        c2.pos = Position::new(1, 58);
         let ct = ConditionTree {
-            left: Box::new(Base(Field(Column::from("tags.id")))),
-            right: Box::new(Base(Field(Column::from("taggings.tag_id")))),
+            left: Box::new(Base(Field(c1))),
+            right: Box::new(Base(Field(c2))),
             operator: Operator::Equal,
         };
         let join_cond = ConditionExpression::ComparisonOp(ct);

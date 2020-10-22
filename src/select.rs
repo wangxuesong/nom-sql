@@ -323,10 +323,16 @@ mod tests {
     use order::OrderType;
     use table::Table;
 
-    fn columns(cols: &[&str]) -> Vec<FieldDefinitionExpression> {
+    fn columns(cols: &[(&str, Position)]) -> Vec<FieldDefinitionExpression> {
         cols.iter()
-            .map(|c| FieldDefinitionExpression::Col(Column::from(*c)))
+            .map(|c| FieldDefinitionExpression::Col(column(c)))
             .collect()
+    }
+
+    fn column(c: &(&str, Position)) -> Column {
+        let mut col = Column::from((*c).0);
+        col.pos = (*c).1.clone();
+        col
     }
 
     fn table_from_str(name: &str, pos: Position) -> Table {
@@ -336,12 +342,6 @@ mod tests {
             alias: None,
             schema: None
         }
-    }
-
-    fn table_from_schema(name: (&str, &str), pos: Position) -> Table {
-        let mut table = Table::from(name);
-        table.pos = pos;
-        table
     }
 
     #[test]
@@ -354,7 +354,7 @@ mod tests {
             SelectStatement {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("users", Position::new(1, 22))],
-                fields: columns(&["id", "name"]),
+                fields: columns(&[("id", Position::new(1, 8)), ("name", Position::new(1, 12))]),
                 ..Default::default()
             }
         );
@@ -370,7 +370,7 @@ mod tests {
             SelectStatement {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("users", Position::new(1, 34))],
-                fields: columns(&["users.id", "users.name"]),
+                fields: columns(&[("users.id", Position::new(1, 8)), ("users.name", Position::new(1, 18))]),
                 ..Default::default()
             }
         );
@@ -451,7 +451,7 @@ mod tests {
             SelectStatement {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("users", Position::new(1, 21))],
-                fields: columns(&["id", "name"]),
+                fields: columns(&[("id", Position::new(1, 8)), ("name", Position::new(1, 11))]),
                 ..Default::default()
             }
         );
@@ -508,7 +508,7 @@ mod tests {
     fn where_clause_with_variable_placeholder(qstring: &str, literal: Literal) {
         let res = selection(Span::new(qstring.as_bytes()));
 
-        let expected_left = Base(Field(Column::from("email")));
+        let expected_left = Base(Field(column(&("email", Position::new(1, 33)))));
         let expected_where_cond = Some(ComparisonOp(ConditionTree {
             left: Box::new(expected_left),
             right: Box::new(Base(Literal(literal))),
@@ -605,6 +605,7 @@ mod tests {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("PaperTag", Position::new(1, 29))],
                 fields: vec![FieldDefinitionExpression::Col(Column {
+                    pos: Position::new(1, 8),
                     name: String::from("name"),
                     alias: Some(String::from("TagName")),
                     table: None,
@@ -620,6 +621,7 @@ mod tests {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("PaperTag", Position::new(1, 38))],
                 fields: vec![FieldDefinitionExpression::Col(Column {
+                    pos: Position::new(1, 8),
                     name: String::from("name"),
                     alias: Some(String::from("TagName")),
                     table: Some(String::from("PaperTag")),
@@ -642,6 +644,7 @@ mod tests {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("PaperTag", Position::new(1, 26))],
                 fields: vec![FieldDefinitionExpression::Col(Column {
+                    pos: Position::new(1, 8),
                     name: String::from("name"),
                     alias: Some(String::from("TagName")),
                     table: None,
@@ -657,6 +660,7 @@ mod tests {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("PaperTag", Position::new(1, 35))],
                 fields: vec![FieldDefinitionExpression::Col(Column {
+                    pos: Position::new(1, 8),
                     name: String::from("name"),
                     alias: Some(String::from("TagName")),
                     table: Some(String::from("PaperTag")),
@@ -672,7 +676,7 @@ mod tests {
         let qstring = "select distinct tag from PaperTag where paperId=?;";
 
         let res = selection(Span::new(qstring.as_bytes()));
-        let expected_left = Base(Field(Column::from("paperId")));
+        let expected_left = Base(Field(column(&("paperId", Position::new(1, 41)))));
         let expected_where_cond = Some(ComparisonOp(ConditionTree {
             left: Box::new(expected_left),
             right: Box::new(Base(Literal(Literal::Placeholder(
@@ -686,7 +690,7 @@ mod tests {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("PaperTag", Position::new(1, 26))],
                 distinct: true,
-                fields: columns(&["tag"]),
+                fields: columns(&[("tag", Position::new(1, 17))]),
                 where_clause: expected_where_cond,
                 ..Default::default()
             }
@@ -700,7 +704,7 @@ mod tests {
         let res = selection(Span::new(qstring.as_bytes()));
 
         let left_ct = ConditionTree {
-            left: Box::new(Base(Field(Column::from("paperId")))),
+            left: Box::new(Base(Field(column(&("paperId", Position::new(1, 41)))))),
             right: Box::new(Base(Literal(Literal::Placeholder(
                 ItemPlaceholder::QuestionMark,
             )))),
@@ -708,7 +712,7 @@ mod tests {
         };
         let left_comp = Box::new(ComparisonOp(left_ct));
         let right_ct = ConditionTree {
-            left: Box::new(Base(Field(Column::from("paperStorageId")))),
+            left: Box::new(Base(Field(column(&("paperStorageId", Position::new(1, 55)))))),
             right: Box::new(Base(Literal(Literal::Placeholder(
                 ItemPlaceholder::QuestionMark,
             )))),
@@ -725,7 +729,7 @@ mod tests {
             SelectStatement {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("PaperStorage", Position::new(1, 22))],
-                fields: columns(&["infoJson"]),
+                fields: columns(&[("infoJson", Position::new(1, 8))]),
                 where_clause: expected_where_cond,
                 ..Default::default()
             }
@@ -742,7 +746,7 @@ mod tests {
             offset: 0,
         });
         let ct = ConditionTree {
-            left: Box::new(Base(Field(Column::from("id")))),
+            left: Box::new(Base(Field(column(&("id", Position::new(1, 27)))))),
             right: Box::new(Base(Literal(Literal::Placeholder(
                 ItemPlaceholder::QuestionMark,
             )))),
@@ -768,13 +772,14 @@ mod tests {
         let qstring = "SELECT max(addr_id) FROM address;";
 
         let res = selection(Span::new(qstring.as_bytes()));
-        let agg_expr = FunctionExpression::Max(FunctionArguments::Column(Column::from("addr_id")));
+        let agg_expr = FunctionExpression::Max(FunctionArguments::Column(column(&("addr_id", Position::new(1, 12)))));
         assert_eq!(
             res.unwrap().1,
             SelectStatement {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("address", Position::new(1, 26))],
                 fields: vec![FieldDefinitionExpression::Col(Column {
+                    pos: Position::new(1, 8),
                     name: String::from("max(addr_id)"),
                     alias: None,
                     table: None,
@@ -790,11 +795,12 @@ mod tests {
         let qstring = "SELECT max(addr_id) AS max_addr FROM address;";
 
         let res = selection(Span::new(qstring.as_bytes()));
-        let agg_expr = FunctionExpression::Max(FunctionArguments::Column(Column::from("addr_id")));
+        let agg_expr = FunctionExpression::Max(FunctionArguments::Column(column(&("addr_id", Position::new(1, 12)))));
         let expected_stmt = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("address", Position::new(1, 38))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(1, 8),
                 name: String::from("max_addr"),
                 alias: Some(String::from("max_addr")),
                 table: None,
@@ -815,13 +821,14 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("votes", Position::new(1, 22))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(1, 8),
                 name: String::from("count(*)"),
                 alias: None,
                 table: None,
                 function: Some(Box::new(agg_expr)),
             })],
             group_by: Some(GroupByClause {
-                columns: vec![Column::from("aid")],
+                columns: vec![column(&("aid", Position::new(1, 37)))],
                 having: None,
             }),
             ..Default::default()
@@ -835,18 +842,19 @@ mod tests {
 
         let res = selection(Span::new(qstring.as_bytes()));
         let agg_expr =
-            FunctionExpression::Count(FunctionArguments::Column(Column::from("vote_id")), true);
+            FunctionExpression::Count(FunctionArguments::Column(column(&("vote_id", Position::new(1, 23)))), true);
         let expected_stmt = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("votes", Position::new(1, 37))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(1, 8),
                 name: String::from("count(distinct vote_id)"),
                 alias: None,
                 table: None,
                 function: Some(Box::new(agg_expr)),
             })],
             group_by: Some(GroupByClause {
-                columns: vec![Column::from("aid")],
+                columns: vec![column(&("aid", Position::new(1, 52)))],
                 having: None,
             }),
             ..Default::default()
@@ -861,13 +869,13 @@ mod tests {
         let res = selection(Span::new(qstring.as_bytes()));
 
         let filter_cond = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("vote_id")))),
+            left: Box::new(Base(Field(column(&("vote_id", Position::new(1, 24)))))),
             right: Box::new(Base(Literal(Literal::Integer(10.into())))),
             operator: Operator::Greater,
         });
         let agg_expr = FunctionExpression::Count(
             FunctionArguments::Conditional(CaseWhenExpression {
-                then_expr: ColumnOrLiteral::Column(Column::from("vote_id")),
+                then_expr: ColumnOrLiteral::Column(column(&("vote_id", Position::new(1, 42)))),
                 else_expr: None,
                 condition: filter_cond,
             }),
@@ -877,13 +885,14 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("votes", Position::new(1, 60))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(1, 8),
                 name: format!("{}", agg_expr),
                 alias: None,
                 table: None,
                 function: Some(Box::new(agg_expr)),
             })],
             group_by: Some(GroupByClause {
-                columns: vec![Column::from("aid")],
+                columns: vec![column(&("aid", Position::new(1, 75)))],
                 having: None,
             }),
             ..Default::default()
@@ -898,13 +907,13 @@ mod tests {
         let res = selection(Span::new(qstring.as_bytes()));
 
         let filter_cond = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("sign")))),
+            left: Box::new(Base(Field(column(&("sign", Position::new(1, 22)))))),
             right: Box::new(Base(Literal(Literal::Integer(1.into())))),
             operator: Operator::Equal,
         });
         let agg_expr = FunctionExpression::Sum(
             FunctionArguments::Conditional(CaseWhenExpression {
-                then_expr: ColumnOrLiteral::Column(Column::from("vote_id")),
+                then_expr: ColumnOrLiteral::Column(column(&("vote_id", Position::new(1, 36)))),
                 else_expr: None,
                 condition: filter_cond,
             }),
@@ -914,13 +923,14 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("votes", Position::new(1, 54))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(1, 8),
                 name: format!("{}", agg_expr),
                 alias: None,
                 table: None,
                 function: Some(Box::new(agg_expr)),
             })],
             group_by: Some(GroupByClause {
-                columns: vec![Column::from("aid")],
+                columns: vec![column(&("aid", Position::new(1, 69)))],
                 having: None,
             }),
             ..Default::default()
@@ -936,13 +946,13 @@ mod tests {
         let res = selection(Span::new(qstring.as_bytes()));
 
         let filter_cond = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("sign")))),
+            left: Box::new(Base(Field(column(&("sign", Position::new(1, 22)))))),
             right: Box::new(Base(Literal(Literal::Integer(1.into())))),
             operator: Operator::Equal,
         });
         let agg_expr = FunctionExpression::Sum(
             FunctionArguments::Conditional(CaseWhenExpression {
-                then_expr: ColumnOrLiteral::Column(Column::from("vote_id")),
+                then_expr: ColumnOrLiteral::Column(column(&("vote_id", Position::new(1, 36)))),
                 else_expr: Some(ColumnOrLiteral::Literal(Literal::Integer(6))),
                 condition: filter_cond,
             }),
@@ -952,13 +962,14 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("votes", Position::new(1, 61))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(1, 8),
                 name: format!("{}", agg_expr),
                 alias: None,
                 table: None,
                 function: Some(Box::new(agg_expr)),
             })],
             group_by: Some(GroupByClause {
-                columns: vec![Column::from("aid")],
+                columns: vec![column(&("aid", Position::new(1, 76)))],
                 having: None,
             }),
             ..Default::default()
@@ -977,12 +988,12 @@ mod tests {
 
         let filter_cond = LogicalOp(ConditionTree {
             left: Box::new(ComparisonOp(ConditionTree {
-                left: Box::new(Base(Field(Column::from("votes.story_id")))),
+                left: Box::new(Base(Field(column(&("votes.story_id", Position::new(2, 29)))))),
                 right: Box::new(Base(Literal(Literal::Null))),
                 operator: Operator::Equal,
             })),
             right: Box::new(ComparisonOp(ConditionTree {
-                left: Box::new(Base(Field(Column::from("votes.vote")))),
+                left: Box::new(Base(Field(column(&("votes.vote", Position::new(2, 56)))))),
                 right: Box::new(Base(Literal(Literal::Integer(0)))),
                 operator: Operator::Equal,
             })),
@@ -990,7 +1001,7 @@ mod tests {
         });
         let agg_expr = FunctionExpression::Count(
             FunctionArguments::Conditional(CaseWhenExpression {
-                then_expr: ColumnOrLiteral::Column(Column::from("votes.vote")),
+                then_expr: ColumnOrLiteral::Column(column(&("votes.vote", Position::new(2, 76)))),
                 else_expr: None,
                 condition: filter_cond,
             }),
@@ -1000,13 +1011,14 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("votes", Position::new(3, 18))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(2, 13),
                 name: String::from("votes"),
                 alias: Some(String::from("votes")),
                 table: None,
                 function: Some(Box::new(agg_expr)),
             })],
             group_by: Some(GroupByClause {
-                columns: vec![Column::from("votes.comment_id")],
+                columns: vec![column(&("votes.comment_id", Position::new(4, 22)))],
                 having: None,
             }),
             ..Default::default()
@@ -1022,12 +1034,12 @@ mod tests {
         let res = selection(Span::new(qstring.as_bytes()));
         let expected_where_cond = Some(LogicalOp(ConditionTree {
             left: Box::new(ComparisonOp(ConditionTree {
-                left: Box::new(Base(Field(Column::from("item.i_a_id")))),
-                right: Box::new(Base(Field(Column::from("author.a_id")))),
+                left: Box::new(Base(Field(column(&("item.i_a_id", Position::new(1, 34)))))),
+                right: Box::new(Base(Field(column(&("author.a_id", Position::new(1, 48)))))),
                 operator: Operator::Equal,
             })),
             right: Box::new(ComparisonOp(ConditionTree {
-                left: Box::new(Base(Field(Column::from("item.i_subject")))),
+                left: Box::new(Base(Field(column(&("item.i_subject", Position::new(1, 64)))))),
                 right: Box::new(Base(Literal(Literal::Placeholder(
                     ItemPlaceholder::QuestionMark,
                 )))),
@@ -1043,7 +1055,7 @@ mod tests {
                 fields: vec![FieldDefinitionExpression::All],
                 where_clause: expected_where_cond,
                 order: Some(OrderClause {
-                    columns: vec![("item.i_title".into(), OrderType::OrderAscending)],
+                    columns: vec![(column(&("item.i_title", Position::new(1, 92))), OrderType::OrderAscending)],
                 }),
                 limit: Some(LimitClause {
                     limit: 50,
@@ -1062,11 +1074,11 @@ mod tests {
         let expected_stmt = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("PaperConflict", Position::new(1, 21))],
-            fields: columns(&["paperId"]),
+            fields: columns(&[("paperId", Position::new(1, 8))]),
             join: vec![JoinClause {
                 operator: JoinOperator::Join,
                 right: JoinRightSide::Table(table_from_str("PCMember", Position::new(1, 40))),
-                constraint: JoinConstraint::Using(vec![Column::from("contactId")]),
+                constraint: JoinConstraint::Using(vec![column(&("contactId", Position::new(1, 56)))]),
             }],
             ..Default::default()
         };
@@ -1083,22 +1095,22 @@ mod tests {
 
         let res = selection(Span::new(qstring.as_bytes()));
         let ct = ConditionTree {
-            left: Box::new(Base(Field(Column::from("PCMember.contactId")))),
-            right: Box::new(Base(Field(Column::from("PaperReview.contactId")))),
+            left: Box::new(Base(Field(column(&("PCMember.contactId", Position::new(1, 62)))))),
+            right: Box::new(Base(Field(column(&("PaperReview.contactId", Position::new(1, 81)))))),
             operator: Operator::Equal,
         };
         let join_cond = ConditionExpression::ComparisonOp(ct);
         let expected = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("PCMember", Position::new(1, 32))],
-            fields: columns(&["PCMember.contactId"]),
+            fields: columns(&[("PCMember.contactId", Position::new(1, 8))]),
             join: vec![JoinClause {
                 operator: JoinOperator::Join,
                 right: JoinRightSide::Table(table_from_str("PaperReview", Position::new(1, 46))),
                 constraint: JoinConstraint::On(join_cond),
             }],
             order: Some(OrderClause {
-                columns: vec![("contactId".into(), OrderType::OrderAscending)],
+                columns: vec![(column(&("contactId", Position::new(1, 113))), OrderType::OrderAscending)],
             }),
             ..Default::default()
         };
@@ -1110,6 +1122,26 @@ mod tests {
                        join PaperReview on PCMember.contactId=PaperReview.contactId \
                        order by contactId;";
         let res = selection(Span::new(qstring.as_bytes()));
+        let ct = ConditionTree {
+            left: Box::new(Base(Field(column(&("PCMember.contactId", Position::new(1, 61)))))),
+            right: Box::new(Base(Field(column(&("PaperReview.contactId", Position::new(1, 80)))))),
+            operator: Operator::Equal,
+        };
+        let join_cond = ConditionExpression::ComparisonOp(ct);
+        let expected = SelectStatement {
+            pos: Position::new(1, 1),
+            tables: vec![table_from_str("PCMember", Position::new(1, 32))],
+            fields: columns(&[("PCMember.contactId", Position::new(1, 8))]),
+            join: vec![JoinClause {
+                operator: JoinOperator::Join,
+                right: JoinRightSide::Table(table_from_str("PaperReview", Position::new(1, 46))),
+                constraint: JoinConstraint::On(join_cond),
+            }],
+            order: Some(OrderClause {
+                columns: vec![(column(&("contactId", Position::new(1, 111))), OrderType::OrderAscending)],
+            }),
+            ..Default::default()
+        };
         assert_eq!(res.unwrap().1, expected);
     }
 
@@ -1131,18 +1163,18 @@ mod tests {
 
         let res = selection(Span::new(qstring.as_bytes()));
         let ct = ConditionTree {
-            left: Box::new(Base(Field(Column::from("ContactInfo.contactId")))),
+            left: Box::new(Base(Field(column(&("ContactInfo.contactId", Position::new(1, 289)))))),
             right: Box::new(Base(Literal(Literal::Placeholder(
                 ItemPlaceholder::QuestionMark,
             )))),
             operator: Operator::Equal,
         };
         let expected_where_cond = Some(ComparisonOp(ct));
-        let mkjoin = |tbl: &str, col: &str, pos: Position| -> JoinClause {
+        let mkjoin = |tbl: &str, col: &str, pos: Position, col_pos: Position| -> JoinClause {
             JoinClause {
                 operator: JoinOperator::LeftJoin,
                 right: JoinRightSide::Table(table_from_str(tbl, pos)),
-                constraint: JoinConstraint::Using(vec![Column::from(col)]),
+                constraint: JoinConstraint::Using(vec![column(&(col, col_pos))]),
             }
         };
         assert_eq!(
@@ -1151,16 +1183,16 @@ mod tests {
                 pos: Position::new(1, 1),
                 tables: vec![table_from_str("ContactInfo", Position::new(1, 75))],
                 fields: columns(&[
-                    "PCMember.contactId",
-                    "ChairAssistant.contactId",
-                    "Chair.contactId"
+                    ("PCMember.contactId", Position::new(1, 8)),
+                    ("ChairAssistant.contactId", Position::new(1, 28)),
+                    ("Chair.contactId", Position::new(1, 54))
                 ]),
                 join: vec![
-                    mkjoin("PaperReview", "contactId", Position::new(1, 97)),
-                    mkjoin("PaperConflict", "contactId", Position::new(1, 137)),
-                    mkjoin("PCMember", "contactId", Position::new(1, 179)),
-                    mkjoin("ChairAssistant", "contactId", Position::new(1, 216)),
-                    mkjoin("Chair", "contactId", Position::new(1, 259)),
+                    mkjoin("PaperReview", "contactId", Position::new(1, 97), Position::new(1, 116)),
+                    mkjoin("PaperConflict", "contactId", Position::new(1, 137), Position::new(1, 158)),
+                    mkjoin("PCMember", "contactId", Position::new(1, 179), Position::new(1, 195)),
+                    mkjoin("ChairAssistant", "contactId", Position::new(1, 216), Position::new(1, 238)),
+                    mkjoin("Chair", "contactId", Position::new(1, 259), Position::new(1, 272)),
                 ],
                 where_clause: expected_where_cond,
                 ..Default::default()
@@ -1176,21 +1208,21 @@ mod tests {
 
         let res = selection(Span::new(qstr.as_bytes()));
         let inner_where_clause = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("orders.o_id")))),
-            right: Box::new(Base(Field(Column::from("order_line.ol_o_id")))),
+            left: Box::new(Base(Field(column(&("orders.o_id", Position::new(1, 108)))))),
+            right: Box::new(Base(Field(column(&("order_line.ol_o_id", Position::new(1, 122)))))),
             operator: Operator::Equal,
         });
 
         let inner_select = SelectStatement {
             pos: Position::new(1, 64),
             tables: vec![table_from_str("orders", Position::new(1, 83)), table_from_str("order_line", Position::new(1, 91))],
-            fields: columns(&["o_c_id"]),
+            fields: columns(&[("o_c_id", Position::new(1, 71))]),
             where_clause: Some(inner_where_clause),
             ..Default::default()
         };
 
         let outer_where_clause = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("orders.o_c_id")))),
+            left: Box::new(Base(Field(column(&("orders.o_c_id", Position::new(1, 46)))))),
             right: Box::new(Base(NestedSelect(Box::new(inner_select)))),
             operator: Operator::In,
         });
@@ -1198,7 +1230,7 @@ mod tests {
         let outer_select = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("orders", Position::new(1, 21)), table_from_str("order_line", Position::new(1, 29))],
-            fields: columns(&["ol_i_id"]),
+            fields: columns(&[("ol_i_id", Position::new(1, 8))]),
             where_clause: Some(outer_where_clause),
             ..Default::default()
         };
@@ -1215,11 +1247,12 @@ mod tests {
 
         let res = selection(Span::new(qstr.as_bytes()));
 
-        let agg_expr = FunctionExpression::Max(FunctionArguments::Column(Column::from("o_id")));
+        let agg_expr = FunctionExpression::Max(FunctionArguments::Column(column(&("o_id", Position::new(1, 171)))));
         let recursive_select = SelectStatement {
             pos: Position::new(1, 160),
             tables: vec![table_from_str("orders", Position::new(1, 182))],
             fields: vec![FieldDefinitionExpression::Col(Column {
+                pos: Position::new(1, 167),
                 name: String::from("max(o_id)"),
                 alias: None,
                 table: None,
@@ -1229,13 +1262,13 @@ mod tests {
         };
 
         let cop1 = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("orders.o_id")))),
-            right: Box::new(Base(Field(Column::from("order_line.ol_o_id")))),
+            left: Box::new(Base(Field(column(&("orders.o_id", Position::new(1, 108)))))),
+            right: Box::new(Base(Field(column(&("order_line.ol_o_id", Position::new(1, 122)))))),
             operator: Operator::Equal,
         });
 
         let cop2 = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("orders.o_id")))),
+            left: Box::new(Base(Field(column(&("orders.o_id", Position::new(1, 145)))))),
             right: Box::new(Base(NestedSelect(Box::new(recursive_select)))),
             operator: Operator::Greater,
         });
@@ -1249,13 +1282,13 @@ mod tests {
         let inner_select = SelectStatement {
             pos: Position::new(1, 64),
             tables: vec![table_from_str("orders", Position::new(1, 83)), table_from_str("order_line", Position::new(1, 91))],
-            fields: columns(&["o_c_id"]),
+            fields: columns(&[("o_c_id", Position::new(1, 71))]),
             where_clause: Some(inner_where_clause),
             ..Default::default()
         };
 
         let outer_where_clause = ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("orders.o_c_id")))),
+            left: Box::new(Base(Field(column(&("orders.o_c_id", Position::new(1, 46)))))),
             right: Box::new(Base(NestedSelect(Box::new(inner_select)))),
             operator: Operator::In,
         });
@@ -1263,7 +1296,7 @@ mod tests {
         let outer_select = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("orders", Position::new(1, 21)), table_from_str("order_line", Position::new(1, 29))],
-            fields: columns(&["ol_i_id"]),
+            fields: columns(&[("ol_i_id", Position::new(1, 8))]),
             where_clause: Some(outer_where_clause),
             ..Default::default()
         };
@@ -1294,21 +1327,21 @@ mod tests {
         let inner_select = SelectStatement {
             pos: Position::new(1, 40),
             tables: vec![table_from_str("order_line", Position::new(1, 60))],
-            fields: columns(&["ol_i_id"]),
+            fields: columns(&[("ol_i_id", Position::new(1, 47))]),
             ..Default::default()
         };
 
         let outer_select = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("orders", Position::new(1, 27))],
-            fields: columns(&["o_id", "ol_i_id"]),
+            fields: columns(&[("o_id", Position::new(1, 8)), ("ol_i_id", Position::new(1, 14))]),
             join: vec![JoinClause {
                 operator: JoinOperator::Join,
                 right: JoinRightSide::NestedSelect(Box::new(inner_select), Some("ids".into())),
                 constraint: JoinConstraint::On(ComparisonOp(ConditionTree {
                     operator: Operator::Equal,
-                    left: Box::new(Base(Field(Column::from("orders.o_id")))),
-                    right: Box::new(Base(Field(Column::from("ids.ol_i_id")))),
+                    left: Box::new(Base(Field(column(&("orders.o_id", Position::new(1, 83)))))),
+                    right: Box::new(Base(Field(column(&("ids.ol_i_id", Position::new(1, 97)))))),
                 })),
             }],
             ..Default::default()
@@ -1332,11 +1365,12 @@ mod tests {
                     alias: None,
                     op: ArithmeticOperator::Subtract,
                     left: ArithmeticBase::Column(Column {
+                        pos: Position::new(1, 8),
                         name: String::from("max(o_id)"),
                         alias: None,
                         table: None,
                         function: Some(Box::new(FunctionExpression::Max(
-                            FunctionArguments::Column("o_id".into()),
+                            FunctionArguments::Column(column(&("o_id", Position::new(1, 12)))),
                         ))),
                     }),
                     right: ArithmeticBase::Scalar(3333.into()),
@@ -1363,11 +1397,12 @@ mod tests {
                     alias: Some(String::from("double_max")),
                     op: ArithmeticOperator::Multiply,
                     left: ArithmeticBase::Column(Column {
+                        pos: Position::new(1, 8),
                         name: String::from("max(o_id)"),
                         alias: None,
                         table: None,
                         function: Some(Box::new(FunctionExpression::Max(
-                            FunctionArguments::Column("o_id".into()),
+                            FunctionArguments::Column(column(&("o_id", Position::new(1, 12)))),
                         ))),
                     }),
                     right: ArithmeticBase::Scalar(2.into()),
@@ -1389,7 +1424,7 @@ mod tests {
         let res = selection(Span::new(qstr.as_bytes()));
 
         let expected_where_clause = Some(ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("auth_permission.content_type_id")))),
+            left: Box::new(Base(Field(column(&("auth_permission.content_type_id", Position::new(5, 27)))))),
             right: Box::new(Base(LiteralList(vec![0.into()]))),
             operator: Operator::In,
         }));
@@ -1398,16 +1433,16 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("auth_permission", Position::new(2, 26))],
             fields: vec![
-                FieldDefinitionExpression::Col(Column::from("auth_permission.content_type_id")),
-                FieldDefinitionExpression::Col(Column::from("auth_permission.codename")),
+                FieldDefinitionExpression::Col(column(&("auth_permission.content_type_id", Position::new(1, 8)))),
+                FieldDefinitionExpression::Col(column(&("auth_permission.codename", Position::new(1, 45)))),
             ],
             join: vec![JoinClause {
                 operator: JoinOperator::Join,
                 right: JoinRightSide::Table(table_from_str("django_content_type", Position::new(3, 26))),
                 constraint: JoinConstraint::On(ComparisonOp(ConditionTree {
                     operator: Operator::Equal,
-                    left: Box::new(Base(Field(Column::from("auth_permission.content_type_id")))),
-                    right: Box::new(Base(Field(Column::from("django_content_type.id")))),
+                    left: Box::new(Base(Field(column(&("auth_permission.content_type_id", Position::new(4, 28)))))),
+                    right: Box::new(Base(Field(column(&("django_content_type.id", Position::new(4, 66)))))),
                 })),
             }],
             where_clause: expected_where_clause,

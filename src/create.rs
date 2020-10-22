@@ -502,11 +502,15 @@ mod tests {
         let qstring = "id bigint(20), name varchar(255),";
 
         let res = field_specification_list(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 1);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 16);
         assert_eq!(
             res.unwrap().1,
             vec![
-                ColumnSpecification::new(Column::from("id"), SqlType::Bigint(20)),
-                ColumnSpecification::new(Column::from("name"), SqlType::Varchar(255)),
+                ColumnSpecification::new(column, SqlType::Bigint(20)),
+                ColumnSpecification::new(column1, SqlType::Varchar(255)),
             ]
         );
     }
@@ -516,15 +520,21 @@ mod tests {
         let qstring = "CREATE TABLE users (id bigint(20), name varchar(255), email varchar(255));";
 
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("users.id");
+        column.pos = Position::new(1, 21);
+        let mut column1 = Column::from("users.name");
+        column1.pos = Position::new(1, 36);
+        let mut column2 = Column::from("users.email");
+        column2.pos = Position::new(1, 55);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 14)),
                 fields: vec![
-                    ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
-                    ColumnSpecification::new(Column::from("users.name"), SqlType::Varchar(255)),
-                    ColumnSpecification::new(Column::from("users.email"), SqlType::Varchar(255)),
+                    ColumnSpecification::new(column, SqlType::Bigint(20)),
+                    ColumnSpecification::new(column1, SqlType::Varchar(255)),
+                    ColumnSpecification::new(column2, SqlType::Varchar(255)),
                 ],
                 ..Default::default()
             }
@@ -535,13 +545,15 @@ mod tests {
     fn create_without_space_after_tablename() {
         let qstring = "CREATE TABLE t(x integer);";
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("t.x");
+        column.pos = Position::new(1, 16);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("t", Position::new(1, 14)),
                 fields: vec![ColumnSpecification::new(
-                    Column::from("t.x"),
+                    column,
                     SqlType::Int(32)
                 ),],
                 ..Default::default()
@@ -553,13 +565,15 @@ mod tests {
     fn create_tablename_with_schema() {
         let qstring = "CREATE TABLE db1.t(x integer);";
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("t.x");
+        column.pos = Position::new(1, 20);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
                 table: table_from_schema(("db1","t"), Position::new(1, 14)),
                 fields: vec![ColumnSpecification::new(
-                    Column::from("t.x"),
+                    column,
                     SqlType::Int(32)
                 ),],
                 ..Default::default()
@@ -572,6 +586,10 @@ mod tests {
         let qstring = "CREATE TABLE user_newtalk (  user_id int(5) NOT NULL default '0',  user_ip \
                        varchar(40) NOT NULL default '') TYPE=MyISAM;";
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("user_newtalk.user_id");
+        column.pos = Position::new(1, 30);
+        let mut column1 = Column::from("user_newtalk.user_ip");
+        column1.pos = Position::new(1, 68);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
@@ -579,7 +597,7 @@ mod tests {
                 table: table_from_str("user_newtalk", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
-                        Column::from("user_newtalk.user_id"),
+                        column,
                         SqlType::Int(5),
                         vec![
                             ColumnConstraint::NotNull,
@@ -587,7 +605,7 @@ mod tests {
                         ],
                     ),
                     ColumnSpecification::with_constraints(
-                        Column::from("user_newtalk.user_ip"),
+                        column1,
                         SqlType::Varchar(40),
                         vec![
                             ColumnConstraint::NotNull,
@@ -662,17 +680,25 @@ mod tests {
                        PRIMARY KEY (id));";
 
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("users.id");
+        column.pos = Position::new(1, 21);
+        let mut column1 = Column::from("users.name");
+        column1.pos = Position::new(1, 36);
+        let mut column2 = Column::from("users.email");
+        column2.pos = Position::new(1, 55);
+        let mut column3 = Column::from("users.id");
+        column3.pos = Position::new(1, 88);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 14)),
                 fields: vec![
-                    ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
-                    ColumnSpecification::new(Column::from("users.name"), SqlType::Varchar(255)),
-                    ColumnSpecification::new(Column::from("users.email"), SqlType::Varchar(255)),
+                    ColumnSpecification::new(column, SqlType::Bigint(20)),
+                    ColumnSpecification::new(column1, SqlType::Varchar(255)),
+                    ColumnSpecification::new(column2, SqlType::Varchar(255)),
                 ],
-                keys: Some(vec![TableKey::PrimaryKey(vec![Column::from("users.id")])]),
+                keys: Some(vec![TableKey::PrimaryKey(vec![column3])]),
                 ..Default::default()
             }
         );
@@ -682,19 +708,27 @@ mod tests {
                        UNIQUE KEY id_k (id));";
 
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column4 = Column::from("users.id");
+        column4.pos = Position::new(1, 21);
+        let mut column5 = Column::from("users.name");
+        column5.pos = Position::new(1, 36);
+        let mut column6 = Column::from("users.email");
+        column6.pos = Position::new(1, 55);
+        let mut column7 = Column::from("users.id");
+        column7.pos = Position::new(1, 92);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 14)),
                 fields: vec![
-                    ColumnSpecification::new(Column::from("users.id"), SqlType::Bigint(20)),
-                    ColumnSpecification::new(Column::from("users.name"), SqlType::Varchar(255)),
-                    ColumnSpecification::new(Column::from("users.email"), SqlType::Varchar(255)),
+                    ColumnSpecification::new(column4, SqlType::Bigint(20)),
+                    ColumnSpecification::new(column5, SqlType::Varchar(255)),
+                    ColumnSpecification::new(column6, SqlType::Varchar(255)),
                 ],
                 keys: Some(vec![TableKey::UniqueKey(
                     Some(String::from("id_k")),
-                    vec![Column::from("users.id")],
+                    vec![column7],
                 ),]),
                 ..Default::default()
             }
@@ -713,6 +747,22 @@ mod tests {
                        `action_flag` smallint UNSIGNED NOT NULL,
                        `change_message` longtext NOT NULL);";
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("django_admin_log.id");
+        column.pos = Position::new(2, 24);
+        let mut column1 = Column::from("django_admin_log.action_time");
+        column1.pos = Position::new(3, 24);
+        let mut column2 = Column::from("django_admin_log.user_id");
+        column2.pos = Position::new(4, 24);
+        let mut column3 = Column::from("django_admin_log.content_type_id");
+        column3.pos = Position::new(5, 24);
+        let mut column4 = Column::from("django_admin_log.object_id");
+        column4.pos = Position::new(6, 24);
+        let mut column5 = Column::from("django_admin_log.object_repr");
+        column5.pos = Position::new(7, 24);
+        let mut column6 = Column::from("django_admin_log.action_flag");
+        column6.pos = Position::new(8, 24);
+        let mut column7 = Column::from("django_admin_log.change_message");
+        column7.pos = Position::new(9, 24);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
@@ -720,7 +770,7 @@ mod tests {
                 table: table_from_str("django_admin_log", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
-                        Column::from("django_admin_log.id"),
+                        column,
                         SqlType::Int(32),
                         vec![
                             ColumnConstraint::AutoIncrement,
@@ -729,35 +779,35 @@ mod tests {
                         ],
                     ),
                     ColumnSpecification::with_constraints(
-                        Column::from("django_admin_log.action_time"),
+                        column1,
                         SqlType::DateTime(0),
                         vec![ColumnConstraint::NotNull],
                     ),
                     ColumnSpecification::with_constraints(
-                        Column::from("django_admin_log.user_id"),
+                        column2,
                         SqlType::Int(32),
                         vec![ColumnConstraint::NotNull],
                     ),
                     ColumnSpecification::new(
-                        Column::from("django_admin_log.content_type_id"),
+                        column3,
                         SqlType::Int(32),
                     ),
                     ColumnSpecification::new(
-                        Column::from("django_admin_log.object_id"),
+                        column4,
                         SqlType::Longtext,
                     ),
                     ColumnSpecification::with_constraints(
-                        Column::from("django_admin_log.object_repr"),
+                        column5,
                         SqlType::Varchar(200),
                         vec![ColumnConstraint::NotNull],
                     ),
                     ColumnSpecification::with_constraints(
-                        Column::from("django_admin_log.action_flag"),
+                        column6,
                         SqlType::UnsignedInt(32),
                         vec![ColumnConstraint::NotNull],
                     ),
                     ColumnSpecification::with_constraints(
-                        Column::from("django_admin_log.change_message"),
+                        column7,
                         SqlType::Longtext,
                         vec![ColumnConstraint::NotNull],
                     ),
@@ -770,6 +820,10 @@ mod tests {
                        `id` integer AUTO_INCREMENT NOT NULL PRIMARY KEY,
                        `name` varchar(80) NOT NULL UNIQUE)";
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column8 = Column::from("auth_group.id");
+        column8.pos = Position::new(2, 24);
+        let mut column9 = Column::from("auth_group.name");
+        column9.pos = Position::new(3, 24);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
@@ -777,7 +831,7 @@ mod tests {
                 table: table_from_str("auth_group", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
-                        Column::from("auth_group.id"),
+                        column8,
                         SqlType::Int(32),
                         vec![
                             ColumnConstraint::AutoIncrement,
@@ -786,7 +840,7 @@ mod tests {
                         ],
                     ),
                     ColumnSpecification::with_constraints(
-                        Column::from("auth_group.name"),
+                        column9,
                         SqlType::Varchar(80),
                         vec![ColumnConstraint::NotNull, ColumnConstraint::Unique],
                     ),
@@ -817,6 +871,8 @@ mod tests {
         let qstring = "CREATE VIEW v AS SELECT * FROM users WHERE username = \"bob\";";
 
         let res = view_creation(Span::new(qstring.as_bytes()));
+        let mut column: Column = "username".into();
+        column.pos = Position::new(1, 44);
         assert_eq!(
             res.unwrap().1,
             CreateViewStatement {
@@ -829,7 +885,7 @@ mod tests {
                     fields: vec![FieldDefinitionExpression::All],
                     where_clause: Some(ConditionExpression::ComparisonOp(ConditionTree {
                         left: Box::new(ConditionExpression::Base(ConditionBase::Field(
-                            "username".into()
+                            column
                         ))),
                         right: Box::new(ConditionExpression::Base(ConditionBase::Literal(
                             Literal::String("bob".into())
@@ -906,6 +962,24 @@ mod tests {
             INDEX `index_comments_on_user_id`  (`user_id`))
             ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
         let res = creation(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("comments.id");
+        column.pos = Position::new(2, 13);
+        let mut column1 = Column::from("comments.hat_id");
+        column1.pos = Position::new(3, 13);
+        let mut column2 = Column::from("comments.comment");
+        column2.pos = Position::new(4, 58);
+        let mut column3 = Column::from("comments.confidence");
+        column3.pos = Position::new(5, 38);
+        let mut column4 = Column::from("comments.short_id");
+        column4.pos = Position::new(6, 39);
+        let mut column5 = Column::from("comments.story_id");
+        column5.pos = Position::new(7, 41);
+        let mut column6 = Column::from("comments.short_id");
+        column6.pos = Position::new(7, 53);
+        let mut column7 = Column::from("comments.thread_id");
+        column7.pos = Position::new(8, 33);
+        let mut column8 = Column::from("comments.user_id");
+        column8.pos = Position::new(9, 49);
         assert_eq!(
             res.unwrap().1,
             CreateTableStatement {
@@ -913,7 +987,7 @@ mod tests {
                 table: table_from_str("comments", Position::new(1, 14)),
                 fields: vec![
                     ColumnSpecification::with_constraints(
-                        Column::from("comments.id"),
+                        column,
                         SqlType::UnsignedInt(32),
                         vec![
                             ColumnConstraint::NotNull,
@@ -921,32 +995,32 @@ mod tests {
                             ColumnConstraint::PrimaryKey,
                         ],
                     ),
-                    ColumnSpecification::new(Column::from("comments.hat_id"), SqlType::Int(32),),
+                    ColumnSpecification::new(column1, SqlType::Int(32),),
                 ],
                 keys: Some(vec![
                     TableKey::FulltextKey(
                         Some("index_comments_on_comment".into()),
-                        vec![Column::from("comments.comment")]
+                        vec![column2]
                     ),
                     TableKey::Key(
                         "confidence_idx".into(),
-                        vec![Column::from("comments.confidence")]
+                        vec![column3]
                     ),
                     TableKey::UniqueKey(
                         Some("short_id".into()),
-                        vec![Column::from("comments.short_id")]
+                        vec![column4]
                     ),
                     TableKey::Key(
                         "story_id_short_id".into(),
                         vec![
-                            Column::from("comments.story_id"),
-                            Column::from("comments.short_id")
+                            column5,
+                            column6
                         ]
                     ),
-                    TableKey::Key("thread_id".into(), vec![Column::from("comments.thread_id")]),
+                    TableKey::Key("thread_id".into(), vec![column7]),
                     TableKey::Key(
                         "index_comments_on_user_id".into(),
-                        vec![Column::from("comments.user_id")]
+                        vec![column8]
                     ),
                 ]),
             }

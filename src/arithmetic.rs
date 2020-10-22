@@ -153,6 +153,7 @@ pub fn arithmetic_expression(i: Span) -> IResult<Span, ArithmeticExpression> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use Position;
 
     #[test]
     fn it_parses_arithmetic_expressions() {
@@ -194,24 +195,37 @@ mod tests {
                 Some(String::from("twenty")),
             ),
         ];
+        let mut column1: Column = "foo".into();
+        column1.pos = Position::new(1, 1);
+        let mut column2: Column = "foo".into();
+        column2.pos = Position::new(1, 1);
+        let mut column3: Column = "foo".into();
+        column3.pos = Position::new(1, 5);
+        let mut column4: Column = "foo".into();
+        column4.pos = Position::new(1, 1);
+        let mut column5: Column = "bar".into();
+        column5.pos = Position::new(1, 7);
+        let mut column6: Column = "foo".into();
+        column6.pos = Position::new(1, 5);
         let expected_col_lit_ae = [
-            ArithmeticExpression::new(Add, ABColumn("foo".into()), Scalar(5.into()), None),
-            ArithmeticExpression::new(Add, ABColumn("foo".into()), Scalar(5.into()), None),
-            ArithmeticExpression::new(Add, Scalar(5.into()), ABColumn("foo".into()), None),
+            ArithmeticExpression::new(Add, ABColumn(column1), Scalar(5.into()), None),
+            ArithmeticExpression::new(Add, ABColumn(column2), Scalar(5.into()), None),
+            ArithmeticExpression::new(Add, Scalar(5.into()), ABColumn(column3), None),
             ArithmeticExpression::new(
                 Multiply,
-                ABColumn("foo".into()),
-                ABColumn("bar".into()),
+                ABColumn(column4),
+                ABColumn(column5),
                 Some(String::from("foobar")),
             ),
             ArithmeticExpression::new(
                 Subtract,
                 ABColumn(Column {
+                    pos: Position::new(1, 1),
                     name: String::from("max(foo)"),
                     alias: None,
                     table: None,
                     function: Some(Box::new(FunctionExpression::Max(
-                        FunctionArguments::Column("foo".into()),
+                        FunctionArguments::Column(column6),
                     ))),
                 }),
                 Scalar(3333.into()),
@@ -275,18 +289,26 @@ mod tests {
         ];
 
         // XXX(malte): currently discards the cast and type information!
+        let mut c1 = Column::from("t.foo");
+        c1.pos = Position::new(1, 6);
+        let mut c2 = Column::from("t.bar");
+        c2.pos = Position::new(1, 38);
+        let mut c3: Column = "foo".into();
+        c3.pos = Position::new(1, 21);
+        let mut c4: Column = "foo".into();
+        c4.pos = Position::new(1, 21);
         let expected = [
             ArithmeticExpression::new(
                 Add,
-                ABColumn(Column::from("t.foo")),
-                ABColumn(Column::from("t.bar")),
+                ABColumn(c1),
+                ABColumn(c2),
                 None,
             ),
-            ArithmeticExpression::new(Subtract, Scalar(5.into()), ABColumn("foo".into()), None),
+            ArithmeticExpression::new(Subtract, Scalar(5.into()), ABColumn(c3), None),
             ArithmeticExpression::new(
                 Subtract,
                 Scalar(5.into()),
-                ABColumn("foo".into()),
+                ABColumn(c4),
                 Some("5_minus_foo".into()),
             ),
         ];

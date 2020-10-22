@@ -107,7 +107,9 @@ mod tests {
     fn delete_with_where_clause() {
         let qstring = "DELETE FROM users WHERE id = 1;";
         let res = deletion(Span::new(qstring.as_bytes()));
-        let expected_left = Base(Field(Column::from("id")));
+        let mut c = Column::from("id");
+        c.pos = Position::new(1, 25);
+        let expected_left = Base(Field(c));
         let expected_where_cond = Some(ComparisonOp(ConditionTree {
             left: Box::new(expected_left),
             right: Box::new(Base(Literal(Literal::Integer(1)))),

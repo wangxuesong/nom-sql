@@ -5,6 +5,7 @@ use std::str;
 use case::CaseWhenExpression;
 use common::{Literal, SqlType};
 use keywords::escape_if_keyword;
+use Position;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum FunctionExpression {
@@ -57,6 +58,7 @@ impl Display for FunctionArguments {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Column {
+    pub pos: Position,
     pub name: String,
     pub alias: Option<String>,
     pub table: Option<String>,
@@ -88,12 +90,14 @@ impl<'a> From<&'a str> for Column {
     fn from(c: &str) -> Column {
         match c.find(".") {
             None => Column {
+                pos: Default::default(),
                 name: String::from(c),
                 alias: None,
                 table: None,
                 function: None,
             },
             Some(i) => Column {
+                pos: Default::default(),
                 name: String::from(&c[i + 1..]),
                 alias: None,
                 table: Some(String::from(&c[0..i])),
@@ -220,6 +224,7 @@ mod tests {
         assert_eq!(
             c,
             Column {
+                pos: Position::new(0, 0),
                 name: String::from("col"),
                 alias: None,
                 table: Some(String::from("table")),
@@ -231,18 +236,21 @@ mod tests {
     #[test]
     fn print_function_column() {
         let c1 = Column {
+            pos: Default::default(),
             name: "".into(), // must be present, but will be ignored
             alias: Some("foo".into()),
             table: None,
             function: Some(Box::new(FunctionExpression::CountStar)),
         };
         let c2 = Column {
+            pos: Default::default(),
             name: "".into(), // must be present, but will be ignored
             alias: None,
             table: None,
             function: Some(Box::new(FunctionExpression::CountStar)),
         };
         let c3 = Column {
+            pos: Default::default(),
             name: "".into(), // must be present, but will be ignored
             alias: None,
             table: None,

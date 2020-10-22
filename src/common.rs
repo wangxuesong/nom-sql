@@ -677,12 +677,14 @@ pub fn column_identifier_no_alias(i: Span) -> IResult<Span, Column> {
     let table_parser = pair(opt(terminated(sql_identifier, tag("."))), sql_identifier);
     alt((
         map(column_function, |f| Column {
+            pos: Position::from_span(i),
             name: format!("{}", f),
             alias: None,
             table: None,
             function: Some(Box::new(f)),
         }),
         map(table_parser, |tup| Column {
+            pos: Position::from_span(i),
             name: str::from_utf8(tup.1.fragment()).unwrap().to_string(),
             alias: None,
             table: match tup.0 {
@@ -697,6 +699,7 @@ pub fn column_identifier_no_alias(i: Span) -> IResult<Span, Column> {
 // Parses a SQL column identifier in the table.column format
 pub fn column_identifier(i: Span) -> IResult<Span, Column> {
     let col_func_no_table = map(pair(column_function, opt(as_alias)), |tup| Column {
+        pos: Position::from_span(i),
         name: match tup.1 {
             None => format!("{}", tup.0),
             Some(a) => String::from(a),
@@ -715,6 +718,7 @@ pub fn column_identifier(i: Span) -> IResult<Span, Column> {
             opt(as_alias),
         )),
         |tup| Column {
+            pos: Position::from_span(i),
             name: str::from_utf8(tup.1.fragment()).unwrap().to_string(),
             alias: match tup.2 {
                 None => None,
@@ -1091,12 +1095,15 @@ mod tests {
         let qs = Span::new(b"max(addr_id)");
 
         let res = column_identifier(qs);
+        let mut column = Column::from("addr_id");
+        column.pos = Position::new(1, 5);
         let expected = Column {
+            pos: Position::new(1, 1),
             name: String::from("max(addr_id)"),
             alias: None,
             table: None,
             function: Some(Box::new(FunctionExpression::Max(
-                FunctionArguments::Column(Column::from("addr_id")),
+                FunctionArguments::Column(column),
             ))),
         };
         assert_eq!(res.unwrap().1, expected);

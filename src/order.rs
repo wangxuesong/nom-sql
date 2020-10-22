@@ -84,6 +84,7 @@ pub fn order_clause(i: Span) -> IResult<Span, OrderClause> {
 mod tests {
     use super::*;
     use select::selection;
+    use Position;
 
     #[test]
     fn order_clause() {
@@ -91,17 +92,25 @@ mod tests {
         let qstring2 = "select * from users order by name asc, age desc\n";
         let qstring3 = "select * from users order by name\n";
 
+        let mut c1: Column = "name".into();
+        c1.pos = Position::new(1, 30);
         let expected_ord1 = OrderClause {
-            columns: vec![("name".into(), OrderType::OrderDescending)],
+            columns: vec![(c1, OrderType::OrderDescending)],
         };
+        let mut c2: Column = "name".into();
+        c2.pos = Position::new(1, 30);
+        let mut c3: Column = "age".into();
+        c3.pos = Position::new(1, 40);
         let expected_ord2 = OrderClause {
             columns: vec![
-                ("name".into(), OrderType::OrderAscending),
-                ("age".into(), OrderType::OrderDescending),
+                (c2, OrderType::OrderAscending),
+                (c3, OrderType::OrderDescending),
             ],
         };
+        let mut c4: Column = "name".into();
+        c4.pos = Position::new(1, 30);
         let expected_ord3 = OrderClause {
-            columns: vec![("name".into(), OrderType::OrderAscending)],
+            columns: vec![(c4, OrderType::OrderAscending)],
         };
 
         let res1 = selection(Span::new(qstring1.as_bytes()));

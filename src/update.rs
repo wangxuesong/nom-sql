@@ -91,6 +91,10 @@ mod tests {
         let qstring = "UPDATE users SET id = 42, name = 'test'";
 
         let res = updating(Span::new(qstring.as_bytes()));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 18);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 27);
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
@@ -98,11 +102,11 @@ mod tests {
                 table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![
                     (
-                        Column::from("id"),
+                        column,
                         FieldValueExpression::Literal(LiteralExpression::from(Literal::from(42))),
                     ),
                     (
-                        Column::from("name"),
+                        column1,
                         FieldValueExpression::Literal(LiteralExpression::from(Literal::from(
                             "test",
                         ))),
@@ -118,12 +122,18 @@ mod tests {
         let qstring = "UPDATE users SET id = 42, name = 'test' WHERE id = 1";
 
         let res = updating(Span::new(qstring.as_bytes()));
-        let expected_left = Base(Field(Column::from("id")));
+        let mut column2 = Column::from("id");
+        column2.pos = Position::new(1, 47);
+        let expected_left = Base(Field(column2));
         let expected_where_cond = Some(ComparisonOp(ConditionTree {
             left: Box::new(expected_left),
             right: Box::new(Base(Literal(Literal::Integer(1)))),
             operator: Operator::Equal,
         }));
+        let mut column = Column::from("id");
+        column.pos = Position::new(1, 18);
+        let mut column1 = Column::from("name");
+        column1.pos = Position::new(1, 27);
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
@@ -131,11 +141,11 @@ mod tests {
                 table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![
                     (
-                        Column::from("id"),
+                        column,
                         FieldValueExpression::Literal(LiteralExpression::from(Literal::from(42))),
                     ),
                     (
-                        Column::from("name"),
+                        column1,
                         FieldValueExpression::Literal(LiteralExpression::from(Literal::from(
                             "test",
                         ))),
@@ -160,7 +170,9 @@ mod tests {
         let qstring = "UPDATE `stories` SET `hotness` = -19216.5479744 WHERE `stories`.`id` = ?";
 
         let res = updating(Span::new(qstring.as_bytes()));
-        let expected_left = Base(Field(Column::from("stories.id")));
+        let mut column1 = Column::from("stories.id");
+        column1.pos = Position::new(1, 55);
+        let expected_left = Base(Field(column1));
         let expected_where_cond = Some(ComparisonOp(ConditionTree {
             left: Box::new(expected_left),
             right: Box::new(Base(Literal(Literal::Placeholder(
@@ -168,13 +180,16 @@ mod tests {
             )))),
             operator: Operator::Equal,
         }));
+        let mut column = Column::from("hotness");
+        column.pos = Position::new(1, 22);
+
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("stories", Position::new(1, 8)),
                 fields: vec![(
-                    Column::from("hotness"),
+                                 column,
                     FieldValueExpression::Literal(LiteralExpression::from(Literal::FixedPoint(
                         Real {
                             integral: -19216,
@@ -193,26 +208,32 @@ mod tests {
         let qstring = "UPDATE users SET karma = karma + 1 WHERE users.id = ?;";
 
         let res = updating(Span::new(qstring.as_bytes()));
+        let mut column2 = Column::from("users.id");
+        column2.pos = Position::new(1, 42);
         let expected_where_cond = Some(ComparisonOp(ConditionTree {
-            left: Box::new(Base(Field(Column::from("users.id")))),
+            left: Box::new(Base(Field(column2))),
             right: Box::new(Base(Literal(Literal::Placeholder(
                 ItemPlaceholder::QuestionMark,
             )))),
             operator: Operator::Equal,
         }));
+        let mut column1 = Column::from("karma");
+        column1.pos = Position::new(1, 26);
         let expected_ae = ArithmeticExpression {
             op: ArithmeticOperator::Add,
-            left: ArithmeticBase::Column(Column::from("karma")),
+            left: ArithmeticBase::Column(column1),
             right: ArithmeticBase::Scalar(1.into()),
             alias: None,
         };
+        let mut column = Column::from("karma");
+        column.pos = Position::new(1, 18);
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![(
-                    Column::from("karma"),
+                                 column,
                     FieldValueExpression::Arithmetic(expected_ae),
                 ),],
                 where_clause: expected_where_cond,
@@ -226,19 +247,23 @@ mod tests {
         let qstring = "UPDATE users SET karma = karma + 1;";
 
         let res = updating(Span::new(qstring.as_bytes()));
+        let mut column1 = Column::from("karma");
+        column1.pos = Position::new(1, 26);
         let expected_ae = ArithmeticExpression {
             op: ArithmeticOperator::Add,
-            left: ArithmeticBase::Column(Column::from("karma")),
+            left: ArithmeticBase::Column(column1),
             right: ArithmeticBase::Scalar(1.into()),
             alias: None,
         };
+        let mut column = Column::from("karma");
+        column.pos = Position::new(1, 18);
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 8)),
                 fields: vec![(
-                    Column::from("karma"),
+                                 column,
                     FieldValueExpression::Arithmetic(expected_ae),
                 ),],
                 ..Default::default()

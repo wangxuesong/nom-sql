@@ -155,23 +155,29 @@ mod tests {
         let res = compound_selection(Span::new(qstr.as_bytes()));
         let res2 = compound_selection(Span::new(qstr2.as_bytes()));
 
+        let mut c1 = Column::from("id");
+        c1.pos = Position::new(1, 8);
         let first_select = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("Vote", Position::new(1, 19))],
             fields: vec![
-                FieldDefinitionExpression::Col(Column::from("id")),
+                FieldDefinitionExpression::Col(c1),
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
                     Literal::Integer(1).into(),
                 )),
             ],
             ..Default::default()
         };
+        let mut c2 = Column::from("id");
+        c2.pos = Position::new(1, 37);
+        let mut c3 = Column::from("stars");
+        c3.pos = Position::new(1, 41);
         let second_select = SelectStatement {
             pos: Position::new(1, 30),
             tables: vec![table_from_str("Rating", Position::new(1, 52))],
             fields: vec![
-                FieldDefinitionExpression::Col(Column::from("id")),
-                FieldDefinitionExpression::Col(Column::from("stars")),
+                FieldDefinitionExpression::Col(c2),
+                FieldDefinitionExpression::Col(c3),
             ],
             ..Default::default()
         };
@@ -184,12 +190,33 @@ mod tests {
             order: None,
             limit: None,
         };
-        let mut first_select2 = first_select;
-        first_select2.pos = Position::new(1, 2);
-        first_select2.tables[0].pos = Position::new(1, 20);
-        let mut second_select2 = second_select;
-        second_select2.pos = Position::new(1, 33);
-        second_select2.tables[0].pos = Position::new(1, 55);
+
+        let mut c1 = Column::from("id");
+        c1.pos = Position::new(1, 9);
+        let first_select2 = SelectStatement {
+            pos: Position::new(1, 2),
+            tables: vec![table_from_str("Vote", Position::new(1, 20))],
+            fields: vec![
+                FieldDefinitionExpression::Col(c1),
+                FieldDefinitionExpression::Value(FieldValueExpression::Literal(
+                    Literal::Integer(1).into(),
+                )),
+            ],
+            ..Default::default()
+        };
+        let mut c2 = Column::from("id");
+        c2.pos = Position::new(1, 40);
+        let mut c3 = Column::from("stars");
+        c3.pos = Position::new(1, 44);
+        let second_select2 = SelectStatement {
+            pos: Position::new(1, 33),
+            tables: vec![table_from_str("Rating", Position::new(1, 55))],
+            fields: vec![
+                FieldDefinitionExpression::Col(c2),
+                FieldDefinitionExpression::Col(c3),
+            ],
+            ..Default::default()
+        };
         let expected2 = CompoundSelectStatement {
             pos: Position::new(1, 1),
             selects: vec![
@@ -211,23 +238,29 @@ mod tests {
                     UNION DISTINCT SELECT 42, 5 FROM Vote;";
         let res = compound_selection(Span::new(qstr.as_bytes()));
 
+        let mut column1 = Column::from("id");
+        column1.pos = Position::new(1, 8);
         let first_select = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("Vote", Position::new(1, 19))],
             fields: vec![
-                FieldDefinitionExpression::Col(Column::from("id")),
+                FieldDefinitionExpression::Col(column1),
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
                     Literal::Integer(1).into(),
                 )),
             ],
             ..Default::default()
         };
+        let mut column2 = Column::from("id");
+        column2.pos = Position::new(1, 37);
+        let mut column3 = Column::from("stars");
+        column3.pos = Position::new(1, 41);
         let second_select = SelectStatement {
             pos: Position::new(1, 30),
             tables: vec![table_from_str("Rating", Position::new(1, 52))],
             fields: vec![
-                FieldDefinitionExpression::Col(Column::from("id")),
-                FieldDefinitionExpression::Col(Column::from("stars")),
+                FieldDefinitionExpression::Col(column2),
+                FieldDefinitionExpression::Col(column3),
             ],
             ..Default::default()
         };
@@ -264,23 +297,29 @@ mod tests {
         let qstr = "SELECT id, 1 FROM Vote UNION ALL SELECT id, stars from Rating;";
         let res = compound_selection(Span::new(qstr.as_bytes()));
 
+        let mut c1 = Column::from("id");
+        c1.pos = Position::new(1, 8);
         let first_select = SelectStatement {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("Vote", Position::new(1, 19))],
             fields: vec![
-                FieldDefinitionExpression::Col(Column::from("id")),
+                FieldDefinitionExpression::Col(c1),
                 FieldDefinitionExpression::Value(FieldValueExpression::Literal(
                     Literal::Integer(1).into(),
                 )),
             ],
             ..Default::default()
         };
+        let mut c2 = Column::from("id");
+        c2.pos = Position::new(1, 41);
+        let mut c3 = Column::from("stars");
+        c3.pos = Position::new(1, 45);
         let second_select = SelectStatement {
             pos: Position::new(1, 34),
             tables: vec![table_from_str("Rating", Position::new(1, 56))],
             fields: vec![
-                FieldDefinitionExpression::Col(Column::from("id")),
-                FieldDefinitionExpression::Col(Column::from("stars")),
+                FieldDefinitionExpression::Col(c2),
+                FieldDefinitionExpression::Col(c3),
             ],
             ..Default::default()
         };
