@@ -12,7 +12,7 @@ extern crate pretty_assertions;
 pub use self::arithmetic::{ArithmeticBase, ArithmeticExpression, ArithmeticOperator};
 pub use self::case::{CaseWhenExpression, ColumnOrLiteral};
 pub use self::column::{
-    Column, ColumnConstraint, ColumnSpecification, FunctionArguments, FunctionExpression,
+    Column, ColumnConstraint, ColumnSpecification, FunctionArgument, FunctionExpression,
 };
 pub use self::common::{
     FieldDefinitionExpression, FieldValueExpression, Literal, LiteralExpression, Operator, Real,
@@ -34,19 +34,19 @@ use nom_locate::LocatedSpan;
 
 pub type Span<'a> = LocatedSpan<&'a [u8]>;
 
-#[derive(Clone, Debug,Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     pub line: u32,
     pub offset: usize,
 }
 
-impl Position{
+impl Position {
     pub fn new(line: u32, offset: usize) -> Position {
-        Position{line,offset}
+        Position { line, offset }
     }
 
-    pub fn new_empty() -> Position{
-        Position{line:0, offset:0}
+    pub fn new_empty() -> Position {
+        Position { line: 0, offset: 0 }
     }
 
     fn from_span(span: Span) -> Position {

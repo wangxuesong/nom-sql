@@ -2,22 +2,22 @@ use nom::branch::alt;
 use nom::character::complete::{alphanumeric1, digit1, line_ending, multispace0, multispace1};
 use nom::character::is_alphanumeric;
 use nom::combinator::{map, not, peek};
-use nom::{IResult, InputLength, AsBytes};
+use nom::{IResult, InputLength, Parser};
 use std::fmt::{self, Display};
 use std::str;
 use std::str::FromStr;
 
 use arithmetic::{arithmetic_expression, ArithmeticExpression};
 use case::case_when_column;
-use column::{Column, FunctionArguments, FunctionExpression};
+use column::{Column, FunctionArgument, FunctionArguments, FunctionExpression};
 use keywords::{escape_if_keyword, sql_keyword};
 use nom::bytes::complete::{is_not, tag, tag_no_case, take, take_until, take_while1};
 use nom::combinator::opt;
 use nom::error::{ErrorKind, ParseError};
-use nom::multi::{fold_many0, many0, many1};
+use nom::multi::{fold_many0, many0, many1, separated_list0};
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 use table::Table;
-use ::{Span, Position};
+use {Position, Span};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum SqlType {
@@ -371,13 +371,39 @@ fn len_as_u16(len: Span) -> u16 {
     }
 }
 
+pub(crate) fn opt_delimited<I: Clone, O1, O2, O3, E: ParseError<I>, F, G, H>(
+    mut first: F,
+    mut second: G,
+    mut third: H,
+) -> impl FnMut(I) -> IResult<I, O2, E>
+where
+    F: Parser<I, O1, E>,
+    G: Parser<I, O2, E>,
+    H: Parser<I, O3, E>,
+{
+    move |input: I| {
+        let inp = input.clone();
+        match second.parse(input) {
+            Ok((i, o)) => Ok((i, o)),
+            _ => {
+                let (inp, _) = first.parse(inp)?;
+                let (inp, o2) = second.parse(inp)?;
+                third.parse(inp).map(|(i, _)| (i, o2))
+            }
+        }
+    }
+}
+
 fn precision_helper(i: Span) -> IResult<Span, (u8, Option<u8>)> {
     let (remaining_input, (m, d)) = tuple((
         digit1,
         opt(preceded(tag(","), preceded(multispace0, digit1))),
     ))(i)?;
 
-    Ok((remaining_input, (m.fragment()[0], d.map(|r| r.fragment()[0]))))
+    Ok((
+        remaining_input,
+        (m.fragment()[0], d.map(|r| r.fragment()[0])),
+    ))
 }
 
 pub fn precision(i: Span) -> IResult<Span, (u8, Option<u8>)> {
@@ -607,15 +633,20 @@ pub fn type_identifier(i: Span) -> IResult<Span, SqlType> {
     alt((type_identifier_first_half, type_identifier_second_half))(i)
 }
 
+// Parses the argument for an aggregation function
+pub fn function_argument_parser(i: Span) -> IResult<Span, FunctionArgument> {
+    alt((
+        map(case_when_column, |cw| FunctionArgument::Conditional(cw)),
+        map(column_identifier_no_alias, |c| FunctionArgument::Column(c)),
+    ))(i)
+}
+
 // Parses the arguments for an aggregation function, and also returns whether the distinct flag is
 // present.
-pub fn function_arguments(i: Span) -> IResult<Span, (FunctionArguments, bool)> {
+pub fn function_arguments(i: Span) -> IResult<Span, (FunctionArgument, bool)> {
     let distinct_parser = opt(tuple((tag_no_case("distinct"), multispace1)));
-    let args_parser = alt((
-        map(case_when_column, |cw| FunctionArguments::Conditional(cw)),
-        map(column_identifier_no_alias, |c| FunctionArguments::Column(c)),
-    ));
-    let (remaining_input, (distinct, args)) = tuple((distinct_parser, args_parser))(i)?;
+    let (remaining_input, (distinct, args)) =
+        tuple((distinct_parser, function_argument_parser))(i)?;
     Ok((remaining_input, (args, distinct.is_some())))
 }
 
@@ -634,7 +665,7 @@ fn group_concat_fx(i: Span) -> IResult<Span, (Column, Option<Span>)> {
     pair(column_identifier_no_alias, opt(group_concat_fx_helper))(i)
 }
 
-fn delim_fx_args(i: Span) -> IResult<Span, (FunctionArguments, bool)> {
+fn delim_fx_args(i: Span) -> IResult<Span, (FunctionArgument, bool)> {
     delimited(tag("("), function_arguments, tag(")"))(i)
 }
 
@@ -666,7 +697,26 @@ pub fn column_function(i: Span) -> IResult<Span, FunctionExpression> {
                     None => String::from(","),
                     Some(s) => String::from_utf8(s.fragment().to_vec()).unwrap(),
                 };
-                FunctionExpression::GroupConcat(FunctionArguments::Column(col.clone()), sep)
+                FunctionExpression::GroupConcat(FunctionArgument::Column(col.clone()), sep)
+            },
+        ),
+        map(
+            tuple((
+                sql_identifier,
+                multispace0,
+                tag("("),
+                separated_list0(
+                    tag(","),
+                    delimited(multispace0, function_argument_parser, multispace0),
+                ),
+                tag(")"),
+            )),
+            |tuple| {
+                let (name, _, _, arguments, _) = tuple;
+                FunctionExpression::Generic(
+                    str::from_utf8(name.fragment()).unwrap().to_string(),
+                    FunctionArguments::from(arguments),
+                )
             },
         ),
     ))(i)
@@ -745,7 +795,7 @@ pub fn sql_identifier(i: Span) -> IResult<Span, Span> {
 
 // Parse an unsigned integer.
 pub fn unsigned_number(i: Span) -> IResult<Span, u64> {
-    map(digit1, |d:Span| {
+    map(digit1, |d: Span| {
         FromStr::from_str(str::from_utf8(d.fragment()).unwrap()).unwrap()
     })(i)
 }
@@ -867,7 +917,7 @@ pub fn table_list(i: Span) -> IResult<Span, Vec<Table>> {
 
 // Integer literal value
 pub fn integer_literal(i: Span) -> IResult<Span, Literal> {
-    map(pair(opt(tag("-")), digit1), |tup:(Option<Span>, Span)| {
+    map(pair(opt(tag("-")), digit1), |tup: (Option<Span>, Span)| {
         let mut intval = i64::from_str(str::from_utf8(tup.1.fragment()).unwrap()).unwrap();
         if (tup.0).is_some() {
             intval *= -1;
@@ -897,9 +947,9 @@ pub fn float_literal(i: Span) -> IResult<Span, Literal> {
 /// String literal value
 fn raw_string_quoted(input: Span, is_single_quote: bool) -> IResult<Span, Vec<u8>> {
     // TODO: clean up these assignments. lifetimes and temporary values made it difficult
-    let quote_slice: Span = if is_single_quote { Span::new(b"\'") } else { Span::new(b"\"") };
-    let double_quote_slice: Span = if is_single_quote { Span::new(b"\'\'") } else { Span::new(b"\"\"" )};
-    let backslash_quote: Span = if is_single_quote { Span::new(b"\\\'") } else { Span::new(b"\\\"") };
+    let quote_slice: &[u8] = if is_single_quote { b"\'" } else { b"\"" };
+    let double_quote_slice: &[u8] = if is_single_quote { b"\'\'" } else { b"\"\"" };
+    let backslash_quote: &[u8] = if is_single_quote { b"\\\'" } else { b"\\\"" };
     delimited(
         tag(quote_slice),
         fold_many0(
@@ -923,7 +973,7 @@ fn raw_string_quoted(input: Span, is_single_quote: bool) -> IResult<Span, Vec<u8
             )),
             Vec::new(),
             |mut acc: Vec<u8>, bytes: Span| {
-                acc.extend(bytes.as_bytes());
+                acc.extend(*bytes.fragment());
                 acc
             },
         ),
@@ -964,12 +1014,12 @@ pub fn literal(i: Span) -> IResult<Span, Literal> {
         map(tag("?"), |_| {
             Literal::Placeholder(ItemPlaceholder::QuestionMark)
         }),
-        map(preceded(tag(":"), digit1), |num:Span| {
-            let value = i32::from_str(str::from_utf8(num.as_bytes()).unwrap()).unwrap();
+        map(preceded(tag(":"), digit1), |num: Span| {
+            let value = i32::from_str(str::from_utf8(num.fragment()).unwrap()).unwrap();
             Literal::Placeholder(ItemPlaceholder::ColonNumber(value))
         }),
-        map(preceded(tag("$"), digit1), |num:Span| {
-            let value = i32::from_str(str::from_utf8(num.as_bytes()).unwrap()).unwrap();
+        map(preceded(tag("$"), digit1), |num: Span| {
+            let value = i32::from_str(str::from_utf8(num.fragment()).unwrap()).unwrap();
             Literal::Placeholder(ItemPlaceholder::DollarNumber(value))
         }),
     ))(i)
@@ -977,10 +1027,7 @@ pub fn literal(i: Span) -> IResult<Span, Literal> {
 
 pub fn literal_expression(i: Span) -> IResult<Span, LiteralExpression> {
     map(
-        pair(
-            delimited(opt(tag("(")), literal, opt(tag(")"))),
-            opt(as_alias),
-        ),
+        pair(opt_delimited(tag("("), literal, tag(")")), opt(as_alias)),
         |p| LiteralExpression {
             value: p.0,
             alias: (p.1).map(|a| a.to_string()),
@@ -996,23 +1043,24 @@ pub fn value_list(i: Span) -> IResult<Span, Vec<Literal>> {
 // Parse a reference to a named schema.table, with an optional alias
 pub fn schema_table_reference(i: Span) -> IResult<Span, Table> {
     map(
-		tuple((
-			opt(pair(sql_identifier, tag("."))),
-			sql_identifier,
-			opt(as_alias)
-		)),
-	|tup| Table {
-        pos: Position::from_span(i),
-        name: String::from(str::from_utf8(tup.1.fragment()).unwrap()),
-        alias: match tup.2 {
-            Some(a) => Some(String::from(a)),
-            None => None,
+        tuple((
+            opt(pair(sql_identifier, tag("."))),
+            sql_identifier,
+            opt(as_alias),
+        )),
+        |tup| Table {
+            pos: Position::from_span(i),
+            name: String::from(str::from_utf8(tup.1.fragment()).unwrap()),
+            alias: match tup.2 {
+                Some(a) => Some(String::from(a)),
+                None => None,
+            },
+            schema: match tup.0 {
+                Some((schema, _)) => Some(String::from(str::from_utf8(schema.fragment()).unwrap())),
+                None => None,
+            },
         },
-        schema: match tup.0 {
-            Some((schema, _)) => Some(String::from(str::from_utf8(schema.fragment()).unwrap())),
-            None => None,
-        },
-    })(i)
+    )(i)
 }
 
 // Parse a reference to a named table, with an optional alias
@@ -1024,7 +1072,7 @@ pub fn table_reference(i: Span) -> IResult<Span, Table> {
             Some(a) => Some(String::from(a)),
             None => None,
         },
-		schema: None,
+        schema: None,
     })(i)
 }
 
@@ -1035,7 +1083,7 @@ pub fn parse_comment(i: Span) -> IResult<Span, String> {
             delimited(multispace0, tag_no_case("comment"), multispace1),
             delimited(tag("'"), take_until("'"), tag("'")),
         ),
-        |comment:Span| String::from(str::from_utf8(comment.fragment()).unwrap()),
+        |comment: Span| String::from(str::from_utf8(comment.fragment()).unwrap()),
     )(i)
 }
 
@@ -1049,6 +1097,12 @@ mod tests {
             span = Span::new_from_raw_offset(offset, line, &b""[..], ());
         };
         span
+    }
+
+    fn column_from_str(name: &str, pos: Position) -> Column {
+        let mut col = Column::from(name);
+        col.pos = pos;
+        col
     }
 
     #[test]
@@ -1066,6 +1120,29 @@ mod tests {
         assert!(sql_identifier(id4).is_err());
         assert!(sql_identifier(id5).is_err());
         assert!(sql_identifier(id6).is_ok());
+    }
+
+    fn test_opt_delimited_fn_call(i: &str) -> IResult<&[u8], &[u8]> {
+        opt_delimited(tag("("), tag("abc"), tag(")"))(i.as_bytes())
+    }
+
+    #[test]
+    fn opt_delimited_tests() {
+        // let ok1 = IResult::Ok(("".as_bytes(), "abc".as_bytes()));
+        assert_eq!(
+            test_opt_delimited_fn_call("abc"),
+            IResult::Ok(("".as_bytes(), "abc".as_bytes()))
+        );
+        assert_eq!(
+            test_opt_delimited_fn_call("(abc)"),
+            IResult::Ok(("".as_bytes(), "abc".as_bytes()))
+        );
+        assert!(test_opt_delimited_fn_call("(abc").is_err());
+        assert_eq!(
+            test_opt_delimited_fn_call("abc)"),
+            IResult::Ok((")".as_bytes(), "abc".as_bytes()))
+        );
+        assert!(test_opt_delimited_fn_call("ab").is_err());
     }
 
     #[test]
@@ -1102,11 +1179,41 @@ mod tests {
             name: String::from("max(addr_id)"),
             alias: None,
             table: None,
-            function: Some(Box::new(FunctionExpression::Max(
-                FunctionArguments::Column(column),
-            ))),
+            function: Some(Box::new(FunctionExpression::Max(FunctionArgument::Column(
+                column,
+            )))),
         };
         assert_eq!(res.unwrap().1, expected);
+    }
+
+    #[test]
+    fn simple_generic_function() {
+        let qlist = [
+            "coalesce(a,b,c)".as_bytes(),
+            "coalesce (a,b,c)".as_bytes(),
+            "coalesce(a ,b,c)".as_bytes(),
+            "coalesce(a, b,c)".as_bytes(),
+        ];
+        let exp_pos = vec![
+            (15, 10, 12, 14),
+            (16, 11, 13, 15),
+            (16, 10, 13, 15),
+            (16, 10, 13, 15),
+        ];
+        let mut i = 0;
+        for q in qlist.iter() {
+            let res = column_function(Span::new(q));
+            let expected = FunctionExpression::Generic(
+                "coalesce".to_string(),
+                FunctionArguments::from(vec![
+                    FunctionArgument::Column(column_from_str("a", Position::new(1, exp_pos[i].1))),
+                    FunctionArgument::Column(column_from_str("b", Position::new(1, exp_pos[i].2))),
+                    FunctionArgument::Column(column_from_str("c", Position::new(1, exp_pos[i].3))),
+                ]),
+            );
+            assert_eq!(res, Ok((new_span_with_offset(exp_pos[i].0, 1), expected)));
+            i += 1;
+        }
     }
 
     #[test]

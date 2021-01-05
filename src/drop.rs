@@ -8,7 +8,7 @@ use nom::combinator::opt;
 use nom::sequence::{delimited, tuple};
 use nom::IResult;
 use table::Table;
-use ::{Span, Position};
+use {Position, Span};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct DropTableStatement {
@@ -70,11 +70,11 @@ mod tests {
     use table::Table;
 
     fn table_from_str(name: &str, pos: Position) -> Table {
-        Table{
+        Table {
             pos,
             name: String::from(name),
             alias: None,
-            schema: None
+            schema: None,
         }
     }
 

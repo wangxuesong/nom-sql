@@ -11,7 +11,7 @@ use nom::sequence::tuple;
 use nom::IResult;
 use select::where_clause;
 use table::Table;
-use ::{Span, Position};
+use {Position, Span};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct UpdateStatement {
@@ -78,11 +78,11 @@ mod tests {
     use table::Table;
 
     fn table_from_str(name: &str, pos: Position) -> Table {
-        Table{
+        Table {
             pos,
             name: String::from(name),
             alias: None,
-            schema: None
+            schema: None,
         }
     }
 
@@ -189,7 +189,7 @@ mod tests {
                 pos: Position::new(1, 1),
                 table: table_from_str("stories", Position::new(1, 8)),
                 fields: vec![(
-                                 column,
+                    column,
                     FieldValueExpression::Literal(LiteralExpression::from(Literal::FixedPoint(
                         Real {
                             integral: -19216,
@@ -217,25 +217,31 @@ mod tests {
             )))),
             operator: Operator::Equal,
         }));
+        // <<<<<<< HEAD
         let mut column1 = Column::from("karma");
         column1.pos = Position::new(1, 26);
-        let expected_ae = ArithmeticExpression {
-            op: ArithmeticOperator::Add,
-            left: ArithmeticBase::Column(column1),
-            right: ArithmeticBase::Scalar(1.into()),
-            alias: None,
-        };
+        let expected_ae = ArithmeticExpression::new(
+            ArithmeticOperator::Add,
+            ArithmeticBase::Column(column1),
+            ArithmeticBase::Scalar(1.into()),
+            None,
+        );
         let mut column = Column::from("karma");
         column.pos = Position::new(1, 18);
+        // =======
+        //         let expected_ae = ArithmeticExpression::new(
+        //             ArithmeticOperator::Add,
+        //             ArithmeticBase::Column(Column::from("karma")),
+        //             ArithmeticBase::Scalar(1.into()),
+        //             None,
+        //         );
+        // >>>>>>> upstream/master
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 8)),
-                fields: vec![(
-                                 column,
-                    FieldValueExpression::Arithmetic(expected_ae),
-                ),],
+                fields: vec![(column, FieldValueExpression::Arithmetic(expected_ae),),],
                 where_clause: expected_where_cond,
                 ..Default::default()
             }
@@ -246,26 +252,33 @@ mod tests {
     fn update_with_arithmetic() {
         let qstring = "UPDATE users SET karma = karma + 1;";
 
+        // <<<<<<< HEAD
         let res = updating(Span::new(qstring.as_bytes()));
         let mut column1 = Column::from("karma");
         column1.pos = Position::new(1, 26);
-        let expected_ae = ArithmeticExpression {
-            op: ArithmeticOperator::Add,
-            left: ArithmeticBase::Column(column1),
-            right: ArithmeticBase::Scalar(1.into()),
-            alias: None,
-        };
+        let expected_ae = ArithmeticExpression::new(
+            ArithmeticOperator::Add,
+            ArithmeticBase::Column(column1),
+            ArithmeticBase::Scalar(1.into()),
+            None,
+        );
         let mut column = Column::from("karma");
         column.pos = Position::new(1, 18);
+        // =======
+        //         let res = updating(qstring.as_bytes());
+        //         let expected_ae = ArithmeticExpression::new(
+        //             ArithmeticOperator::Add,
+        //             ArithmeticBase::Column(Column::from("karma")),
+        //             ArithmeticBase::Scalar(1.into()),
+        //             None,
+        //         );
+        // >>>>>>> upstream/master
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("users", Position::new(1, 8)),
-                fields: vec![(
-                                 column,
-                    FieldValueExpression::Arithmetic(expected_ae),
-                ),],
+                fields: vec![(column, FieldValueExpression::Arithmetic(expected_ae),),],
                 ..Default::default()
             }
         );

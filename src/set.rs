@@ -4,8 +4,8 @@ use std::{fmt, str};
 
 use common::{literal, sql_identifier, statement_terminator, Literal};
 use nom::sequence::tuple;
-use nom::{IResult, AsBytes};
-use ::{Span, Position};
+use nom::{AsBytes, IResult};
+use {Position, Span};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct SetStatement {

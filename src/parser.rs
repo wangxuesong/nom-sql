@@ -84,11 +84,11 @@ mod tests {
     use Position;
 
     fn table_from_str(name: &str, pos: Position) -> Table {
-        Table{
+        Table {
             pos,
             name: String::from(name),
             alias: None,
-            schema: None
+            schema: None,
         }
     }
 

@@ -9,13 +9,14 @@ use Position;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum FunctionExpression {
-    Avg(FunctionArguments, bool),
-    Count(FunctionArguments, bool),
+    Avg(FunctionArgument, bool),
+    Count(FunctionArgument, bool),
     CountStar,
-    Sum(FunctionArguments, bool),
-    Max(FunctionArguments),
-    Min(FunctionArguments),
-    GroupConcat(FunctionArguments, String),
+    Sum(FunctionArgument, bool),
+    Max(FunctionArgument),
+    Min(FunctionArgument),
+    GroupConcat(FunctionArgument, String),
+    Generic(String, FunctionArguments),
 }
 
 impl Display for FunctionExpression {
@@ -34,21 +35,48 @@ impl Display for FunctionExpression {
             FunctionExpression::GroupConcat(ref col, ref s) => {
                 write!(f, "group_concat({}, {})", col, s)
             }
+            FunctionExpression::Generic(ref name, ref args) => write!(f, "{}({})", name, args),
         }
     }
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
-pub enum FunctionArguments {
-    Column(Column),
-    Conditional(CaseWhenExpression),
+pub struct FunctionArguments {
+    pub arguments: Vec<FunctionArgument>,
 }
 
 impl Display for FunctionArguments {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.arguments
+                .iter()
+                .map(|arg| format!("{}", arg))
+                .collect::<Vec<String>>()
+                .join(",")
+        )?;
+        Ok(())
+    }
+}
+
+impl<'a> From<Vec<FunctionArgument>> for FunctionArguments {
+    fn from(args: Vec<FunctionArgument>) -> FunctionArguments {
+        FunctionArguments { arguments: args }
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+pub enum FunctionArgument {
+    Column(Column),
+    Conditional(CaseWhenExpression),
+}
+
+impl Display for FunctionArgument {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            FunctionArguments::Column(ref col) => write!(f, "{}", col)?,
-            FunctionArguments::Conditional(ref e) => {
+            FunctionArgument::Column(ref col) => write!(f, "{}", col)?,
+            FunctionArgument::Conditional(ref e) => {
                 write!(f, "{}", e)?;
             }
         }
@@ -255,7 +283,7 @@ mod tests {
             alias: None,
             table: None,
             function: Some(Box::new(FunctionExpression::Sum(
-                FunctionArguments::Column(Column::from("mytab.foo")),
+                FunctionArgument::Column(Column::from("mytab.foo")),
                 false,
             ))),
         };

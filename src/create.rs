@@ -5,8 +5,8 @@ use std::str::FromStr;
 
 use column::{Column, ColumnConstraint, ColumnSpecification};
 use common::{
-    column_identifier_no_alias, parse_comment, sql_identifier, statement_terminator,
-    schema_table_reference, type_identifier, ws_sep_comma, Literal, Real, SqlType, TableKey,
+    column_identifier_no_alias, parse_comment, schema_table_reference, sql_identifier,
+    statement_terminator, type_identifier, ws_sep_comma, Literal, Real, SqlType, TableKey,
 };
 use compound_select::{compound_selection, CompoundSelectStatement};
 use create_table_options::table_options;
@@ -16,11 +16,11 @@ use nom::bytes::complete::{tag, tag_no_case, take_until};
 use nom::combinator::{map, opt};
 use nom::multi::{many0, many1};
 use nom::sequence::{delimited, preceded, terminated, tuple};
-use nom::{IResult, AsBytes};
+use nom::{AsBytes, IResult};
 use order::{order_type, OrderType};
 use select::{nested_selection, SelectStatement};
 use table::Table;
-use ::{Span, Position};
+use {Position, Span};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct CreateTableStatement {
@@ -320,12 +320,11 @@ fn default(i: Span) -> IResult<Span, Option<ColumnConstraint>> {
         tag_no_case("default"),
         multispace1,
         alt((
-            map(
-                delimited(tag("'"), take_until("'"), tag("'")),
-                |s: Span| Literal::String(String::from_utf8(s.as_bytes().to_vec()).unwrap()),
-            ),
+            map(delimited(tag("'"), take_until("'"), tag("'")), |s: Span| {
+                Literal::String(String::from_utf8(s.as_bytes().to_vec()).unwrap())
+            }),
             fixed_point,
-            map(digit1, |d:Span| {
+            map(digit1, |d: Span| {
                 let d_i64 = i64::from_str(str::from_utf8(d.as_bytes()).unwrap()).unwrap();
                 Literal::Integer(d_i64)
             }),
@@ -462,11 +461,11 @@ mod tests {
     use table::Table;
 
     fn table_from_str(name: &str, pos: Position) -> Table {
-        Table{
+        Table {
             pos,
             name: String::from(name),
             alias: None,
-            schema: None
+            schema: None,
         }
     }
 
@@ -552,10 +551,7 @@ mod tests {
             CreateTableStatement {
                 pos: Position::new(1, 1),
                 table: table_from_str("t", Position::new(1, 14)),
-                fields: vec![ColumnSpecification::new(
-                    column,
-                    SqlType::Int(32)
-                ),],
+                fields: vec![ColumnSpecification::new(column, SqlType::Int(32)),],
                 ..Default::default()
             }
         );
@@ -571,11 +567,8 @@ mod tests {
             res.unwrap().1,
             CreateTableStatement {
                 pos: Position::new(1, 1),
-                table: table_from_schema(("db1","t"), Position::new(1, 14)),
-                fields: vec![ColumnSpecification::new(
-                    column,
-                    SqlType::Int(32)
-                ),],
+                table: table_from_schema(("db1", "t"), Position::new(1, 14)),
+                fields: vec![ColumnSpecification::new(column, SqlType::Int(32)),],
                 ..Default::default()
             }
         );
@@ -788,14 +781,8 @@ mod tests {
                         SqlType::Int(32),
                         vec![ColumnConstraint::NotNull],
                     ),
-                    ColumnSpecification::new(
-                        column3,
-                        SqlType::Int(32),
-                    ),
-                    ColumnSpecification::new(
-                        column4,
-                        SqlType::Longtext,
-                    ),
+                    ColumnSpecification::new(column3, SqlType::Int(32),),
+                    ColumnSpecification::new(column4, SqlType::Longtext,),
                     ColumnSpecification::with_constraints(
                         column5,
                         SqlType::Varchar(200),
@@ -884,9 +871,7 @@ mod tests {
                     tables: vec![table_from_str("users", Position::new(1, 32))],
                     fields: vec![FieldDefinitionExpression::All],
                     where_clause: Some(ConditionExpression::ComparisonOp(ConditionTree {
-                        left: Box::new(ConditionExpression::Base(ConditionBase::Field(
-                            column
-                        ))),
+                        left: Box::new(ConditionExpression::Base(ConditionBase::Field(column))),
                         right: Box::new(ConditionExpression::Base(ConditionBase::Literal(
                             Literal::String("bob".into())
                         ))),
@@ -998,30 +983,12 @@ mod tests {
                     ColumnSpecification::new(column1, SqlType::Int(32),),
                 ],
                 keys: Some(vec![
-                    TableKey::FulltextKey(
-                        Some("index_comments_on_comment".into()),
-                        vec![column2]
-                    ),
-                    TableKey::Key(
-                        "confidence_idx".into(),
-                        vec![column3]
-                    ),
-                    TableKey::UniqueKey(
-                        Some("short_id".into()),
-                        vec![column4]
-                    ),
-                    TableKey::Key(
-                        "story_id_short_id".into(),
-                        vec![
-                            column5,
-                            column6
-                        ]
-                    ),
+                    TableKey::FulltextKey(Some("index_comments_on_comment".into()), vec![column2]),
+                    TableKey::Key("confidence_idx".into(), vec![column3]),
+                    TableKey::UniqueKey(Some("short_id".into()), vec![column4]),
+                    TableKey::Key("story_id_short_id".into(), vec![column5, column6]),
                     TableKey::Key("thread_id".into(), vec![column7]),
-                    TableKey::Key(
-                        "index_comments_on_user_id".into(),
-                        vec![column8]
-                    ),
+                    TableKey::Key("index_comments_on_user_id".into(), vec![column8]),
                 ]),
             }
         );

@@ -1,7 +1,7 @@
 use nom::character::complete::multispace1;
 use std::{fmt, str};
 
-use common::{statement_terminator, schema_table_reference};
+use common::{schema_table_reference, statement_terminator};
 use condition::ConditionExpression;
 use keywords::escape_if_keyword;
 use nom::bytes::complete::tag_no_case;
@@ -10,7 +10,7 @@ use nom::sequence::{delimited, tuple};
 use nom::IResult;
 use select::where_clause;
 use table::Table;
-use ::{Span, Position};
+use {Position, Span};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct DeleteStatement {
@@ -61,11 +61,11 @@ mod tests {
     use table::Table;
 
     fn table_from_str(name: &str, pos: Position) -> Table {
-        Table{
+        Table {
             pos,
             name: String::from(name),
             alias: None,
-            schema: None
+            schema: None,
         }
     }
 
@@ -97,7 +97,7 @@ mod tests {
             res.unwrap().1,
             DeleteStatement {
                 pos: Position::new(1, 1),
-                table: table_from_schema(("db1","users"), Position::new(1, 13)),
+                table: table_from_schema(("db1", "users"), Position::new(1, 13)),
                 ..Default::default()
             }
         );

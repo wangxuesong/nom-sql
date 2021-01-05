@@ -4,7 +4,7 @@ use std::str;
 
 use column::Column;
 use common::{
-    assignment_expr_list, field_list, statement_terminator, schema_table_reference, value_list,
+    assignment_expr_list, field_list, schema_table_reference, statement_terminator, value_list,
     ws_sep_comma, FieldValueExpression, Literal,
 };
 use keywords::escape_if_keyword;
@@ -14,7 +14,7 @@ use nom::multi::many1;
 use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 use table::Table;
-use ::{Span, Position};
+use {Position, Span};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct InsertStatement {
@@ -125,11 +125,11 @@ mod tests {
     use table::Table;
 
     fn table_from_str(name: &str, pos: Position) -> Table {
-        Table{
+        Table {
             pos,
             name: String::from(name),
             alias: None,
-            schema: None
+            schema: None,
         }
     }
 
@@ -165,7 +165,7 @@ mod tests {
             res.unwrap().1,
             InsertStatement {
                 pos: Position::new(1, 1),
-                table: table_from_schema(("db1","users"), Position::new(1, 13)),
+                table: table_from_schema(("db1", "users"), Position::new(1, 13)),
                 fields: None,
                 data: vec![vec![42.into(), "test".into()]],
                 ..Default::default()
@@ -294,12 +294,12 @@ mod tests {
         let res = insertion(Span::new(qstring.as_bytes()));
         let mut column = Column::from("value");
         column.pos = Position::new(1, 90);
-        let expected_ae = ArithmeticExpression {
-            op: ArithmeticOperator::Add,
-            left: ArithmeticBase::Column(column),
-            right: ArithmeticBase::Scalar(1.into()),
-            alias: None,
-        };
+        let expected_ae = ArithmeticExpression::new(
+            ArithmeticOperator::Add,
+            ArithmeticBase::Column(column),
+            ArithmeticBase::Scalar(1.into()),
+            None,
+        );
         let mut column1 = Column::from("key");
         column1.pos = Position::new(1, 24);
         let mut column2 = Column::from("value");
@@ -317,7 +317,7 @@ mod tests {
                     Literal::Placeholder(ItemPlaceholder::ColonNumber(2))
                 ]],
                 on_duplicate: Some(vec![(
-                                            column3,
+                    column3,
                     FieldValueExpression::Arithmetic(expected_ae),
                 ),]),
                 ..Default::default()

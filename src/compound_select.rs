@@ -2,7 +2,7 @@ use nom::character::complete::{multispace0, multispace1};
 use std::fmt;
 use std::str;
 
-use common::statement_terminator;
+use common::{opt_delimited, statement_terminator};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::combinator::{map, opt};
@@ -11,7 +11,7 @@ use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 use order::{order_clause, OrderClause};
 use select::{limit_clause, nested_selection, LimitClause, SelectStatement};
-use ::{Span, Position};
+use {Position, Span};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum CompoundSelectOperator {
@@ -92,15 +92,15 @@ fn compound_op(i: Span) -> IResult<Span, CompoundSelectOperator> {
 }
 
 fn other_selects(i: Span) -> IResult<Span, (Option<CompoundSelectOperator>, SelectStatement)> {
-    let (remaining_input, (_, op, _, _, _, select, _, _)) = tuple((
+    let (remaining_input, (_, op, _, select)) = tuple((
         multispace0,
         compound_op,
         multispace1,
-        opt(tag("(")),
-        multispace0,
-        nested_selection,
-        multispace0,
-        opt(tag(")")),
+        opt_delimited(
+            tag("("),
+            delimited(multispace0, nested_selection, multispace0),
+            tag(")"),
+        ),
     ))(i)?;
 
     Ok((remaining_input, (Some(op), select)))
@@ -109,7 +109,7 @@ fn other_selects(i: Span) -> IResult<Span, (Option<CompoundSelectOperator>, Sele
 // Parse compound selection
 pub fn compound_selection(i: Span) -> IResult<Span, CompoundSelectStatement> {
     let (remaining_input, (first_select, other_selects, _, order, limit, _)) = tuple((
-        delimited(opt(tag("(")), nested_selection, opt(tag(")"))),
+        opt_delimited(tag("("), nested_selection, tag(")")),
         many1(other_selects),
         multispace0,
         opt(order_clause),
@@ -140,11 +140,11 @@ mod tests {
     use Position;
 
     fn table_from_str(name: &str, pos: Position) -> Table {
-        Table{
+        Table {
             pos,
             name: String::from(name),
             alias: None,
-            schema: None
+            schema: None,
         }
     }
 
@@ -185,7 +185,10 @@ mod tests {
             pos: Position::new(1, 1),
             selects: vec![
                 (None, first_select.clone()),
-                (Some(CompoundSelectOperator::DistinctUnion), second_select.clone()),
+                (
+                    Some(CompoundSelectOperator::DistinctUnion),
+                    second_select.clone(),
+                ),
             ],
             order: None,
             limit: None,
@@ -229,6 +232,48 @@ mod tests {
 
         assert_eq!(res.unwrap().1, expected);
         assert_eq!(res2.unwrap().1, expected2);
+    }
+
+    #[test]
+    fn union_strict() {
+        let qstr = "SELECT id, 1 FROM Vote);";
+        let qstr2 = "(SELECT id, 1 FROM Vote;";
+        let qstr3 = "SELECT id, 1 FROM Vote) UNION (SELECT id, stars from Rating;";
+        let res = compound_selection(Span::new(qstr.as_bytes()));
+        let res2 = compound_selection(Span::new(qstr2.as_bytes()));
+        let res3 = compound_selection(Span::new(qstr3.as_bytes()));
+
+        assert!(&res.is_err());
+        assert_eq!(
+            res.unwrap_err(),
+            nom::Err::Error(nom::error::Error::new(
+                unsafe { Span::new_from_raw_offset(22, 1, ");".as_bytes(), ()) },
+                nom::error::ErrorKind::Tag
+            ))
+        );
+        assert!(&res2.is_err());
+        assert_eq!(
+            res2.unwrap_err(),
+            nom::Err::Error(nom::error::Error::new(
+                unsafe { Span::new_from_raw_offset(23, 1, ";".as_bytes(), ()) },
+                nom::error::ErrorKind::Tag
+            ))
+        );
+        assert!(&res3.is_err());
+        assert_eq!(
+            res3.unwrap_err(),
+            nom::Err::Error(nom::error::Error::new(
+                unsafe {
+                    Span::new_from_raw_offset(
+                        22,
+                        1,
+                        ") UNION (SELECT id, stars from Rating;".as_bytes(),
+                        (),
+                    )
+                },
+                nom::error::ErrorKind::Tag
+            ))
+        );
     }
 
     #[test]
