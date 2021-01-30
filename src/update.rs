@@ -217,7 +217,6 @@ mod tests {
             )))),
             operator: Operator::Equal,
         }));
-        // <<<<<<< HEAD
         let mut column1 = Column::from("karma");
         column1.pos = Position::new(1, 26);
         let expected_ae = ArithmeticExpression::new(
@@ -228,14 +227,6 @@ mod tests {
         );
         let mut column = Column::from("karma");
         column.pos = Position::new(1, 18);
-        // =======
-        //         let expected_ae = ArithmeticExpression::new(
-        //             ArithmeticOperator::Add,
-        //             ArithmeticBase::Column(Column::from("karma")),
-        //             ArithmeticBase::Scalar(1.into()),
-        //             None,
-        //         );
-        // >>>>>>> upstream/master
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {
@@ -252,7 +243,6 @@ mod tests {
     fn update_with_arithmetic() {
         let qstring = "UPDATE users SET karma = karma + 1;";
 
-        // <<<<<<< HEAD
         let res = updating(Span::new(qstring.as_bytes()));
         let mut column1 = Column::from("karma");
         column1.pos = Position::new(1, 26);
@@ -264,15 +254,6 @@ mod tests {
         );
         let mut column = Column::from("karma");
         column.pos = Position::new(1, 18);
-        // =======
-        //         let res = updating(qstring.as_bytes());
-        //         let expected_ae = ArithmeticExpression::new(
-        //             ArithmeticOperator::Add,
-        //             ArithmeticBase::Column(Column::from("karma")),
-        //             ArithmeticBase::Scalar(1.into()),
-        //             None,
-        //         );
-        // >>>>>>> upstream/master
         assert_eq!(
             res.unwrap().1,
             UpdateStatement {

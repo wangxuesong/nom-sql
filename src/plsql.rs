@@ -14,9 +14,9 @@ use {Position, Span};
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct ParameterDeclaration {
-    pos: Position,
-    name: String,
-    data_type: String,
+    pub pos: Position,
+    pub name: String,
+    pub data_type: String,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -57,9 +57,9 @@ pub enum Declaration {
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct PlSqlVariable {
-    pos: Position,
-    name: String,
-    data_type: String,
+    pub pos: Position,
+    pub name: String,
+    pub data_type: String,
 }
 
 fn declarations(i: Span) -> IResult<Span, Declaration> {

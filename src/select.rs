@@ -1526,27 +1526,15 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("orders", Position::new(1, 28))],
             fields: vec![FieldDefinitionExpression::Value(
-                // <<<<<<< HEAD
-                //                 FieldValueExpression::Arithmetic(ArithmeticExpression {
-                //                     alias: None,
-                //                     op: ArithmeticOperator::Subtract,
-                //                     left: ArithmeticBase::Column(Column {
-                //                         pos: Position::new(1, 8),
-                // =======
                 FieldValueExpression::Arithmetic(ArithmeticExpression::new(
                     ArithmeticOperator::Subtract,
                     ArithmeticBase::Column(Column {
-                        // >>>>>>> upstream/master
                         pos: Position::new(1, 8),
                         name: String::from("max(o_id)"),
                         alias: None,
                         table: None,
                         function: Some(Box::new(FunctionExpression::Max(
-                            // <<<<<<< HEAD
                             FunctionArgument::Column(column(&("o_id", Position::new(1, 12)))),
-                            // =======
-                            //                             FunctionArgument::Column("o_id".into()),
-                            // >>>>>>> upstream/master
                         ))),
                     }),
                     ArithmeticBase::Scalar(3333.into()),
@@ -1570,27 +1558,15 @@ mod tests {
             pos: Position::new(1, 1),
             tables: vec![table_from_str("orders", Position::new(1, 41))],
             fields: vec![FieldDefinitionExpression::Value(
-                // <<<<<<< HEAD
-                //                 FieldValueExpression::Arithmetic(ArithmeticExpression {
-                //                     alias: Some(String::from("double_max")),
-                //                     op: ArithmeticOperator::Multiply,
-                //                     left: ArithmeticBase::Column(Column {
-                //                         pos: Position::new(1, 8),
-                // =======
                 FieldValueExpression::Arithmetic(ArithmeticExpression::new(
                     ArithmeticOperator::Multiply,
                     ArithmeticBase::Column(Column {
                         pos: Position::new(1, 8),
-                        // >>>>>>> upstream/master
                         name: String::from("max(o_id)"),
                         alias: None,
                         table: None,
                         function: Some(Box::new(FunctionExpression::Max(
-                            // <<<<<<< HEAD
                             FunctionArgument::Column(column(&("o_id", Position::new(1, 12)))),
-                            // =======
-                            //                             FunctionArgument::Column("o_id".into()),
-                            // >>>>>>> upstream/master
                         ))),
                     }),
                     ArithmeticBase::Scalar(2.into()),

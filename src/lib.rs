@@ -26,10 +26,12 @@ pub use self::insert::InsertStatement;
 pub use self::join::{JoinConstraint, JoinOperator, JoinRightSide};
 pub use self::order::{OrderClause, OrderType};
 pub use self::parser::*;
+pub use self::plsql::*;
 pub use self::select::{GroupByClause, JoinClause, LimitClause, SelectStatement};
 pub use self::set::SetStatement;
 pub use self::table::Table;
 pub use self::update::UpdateStatement;
+
 use nom_locate::LocatedSpan;
 
 pub type Span<'a> = LocatedSpan<&'a [u8]>;
@@ -50,7 +52,10 @@ impl Position {
     }
 
     fn from_span(span: Span) -> Position {
-        Position{ line: span.location_line(), offset: span.get_column() }
+        Position {
+            line: span.location_line(),
+            offset: span.get_column(),
+        }
     }
 }
 
@@ -77,8 +82,8 @@ mod drop;
 mod insert;
 mod join;
 mod order;
+mod plsql;
 mod select;
 mod set;
 mod table;
 mod update;
-mod plsql;

@@ -34,7 +34,14 @@ pub fn set(i: Span) -> IResult<Span, SetStatement> {
         statement_terminator,
     ))(i)?;
     let variable = String::from(str::from_utf8(var.as_bytes()).unwrap());
-    Ok((remaining_input, SetStatement { pos: Position::from(i), variable, value }))
+    Ok((
+        remaining_input,
+        SetStatement {
+            pos: Position::from(i),
+            variable,
+            value,
+        },
+    ))
 }
 
 #[cfg(test)]

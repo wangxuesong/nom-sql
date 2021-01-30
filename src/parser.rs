@@ -9,6 +9,7 @@ use insert::{insertion, InsertStatement};
 use nom::branch::alt;
 use nom::combinator::map;
 use nom::IResult;
+use plsql::*;
 use select::{selection, SelectStatement};
 use set::{set, SetStatement};
 use update::{updating, UpdateStatement};
@@ -18,6 +19,7 @@ use Span;
 pub enum SqlQuery {
     CreateTable(CreateTableStatement),
     CreateView(CreateViewStatement),
+    CreateProcedure(CreateProcedureStatement),
     Insert(InsertStatement),
     CompoundSelect(CompoundSelectStatement),
     Select(SelectStatement),
@@ -34,6 +36,7 @@ impl fmt::Display for SqlQuery {
             SqlQuery::Insert(ref insert) => write!(f, "{}", insert),
             SqlQuery::CreateTable(ref create) => write!(f, "{}", create),
             SqlQuery::CreateView(ref create) => write!(f, "{}", create),
+            // SqlQuery::CreateProcedure(ref create) => write!(f, "{}", create),
             SqlQuery::Delete(ref delete) => write!(f, "{}", delete),
             SqlQuery::DropTable(ref drop) => write!(f, "{}", drop),
             SqlQuery::Update(ref update) => write!(f, "{}", update),
@@ -54,6 +57,7 @@ pub fn sql_query(i: Span) -> IResult<Span, SqlQuery> {
         map(updating, |u| SqlQuery::Update(u)),
         map(set, |s| SqlQuery::Set(s)),
         map(view_creation, |vc| SqlQuery::CreateView(vc)),
+        map(create_procedure, |cp| SqlQuery::CreateProcedure(cp)),
     ))(i)
 }
 
@@ -280,5 +284,31 @@ mod tests {
         assert!(res1.is_ok());
         assert_eq!(expected0, format!("{}", res0.unwrap()));
         assert_eq!(expected1, format!("{}", res1.unwrap()));
+    }
+
+    #[test]
+    fn create_procedure_test() {
+        let sql = "CREATE OR REPLACE PROCEDURE test
+(
+    sales NUMBER,
+    quota NUMBER,
+    emp_id NUMBER
+)
+IS
+    bonus NUMBER := 0;
+BEGIN
+    IF sales > quota THEN
+        bonus := 50;
+    ELSE
+        bonus := 0;
+    END IF;
+END;";
+        let res = parse_query(sql);
+        assert!(res.is_ok());
+        let query = res.unwrap();
+        match query {
+            SqlQuery::CreateProcedure(_) => {}
+            _ => assert!(false),
+        }
     }
 }
